@@ -21,10 +21,8 @@ npm install
 npm run dev
 ```
 
-Credenciais locais de demonstração:
-
-- Administrador: `admin@cesol.br` / `cesol123`
-- Usuário comum: `tecnico@cesol.br` / `cesol123`
+No modo Supabase, usuários devem ser criados pelo fluxo `/cadastro` ou pelo painel do Supabase.
+Contas criadas pelo app são sempre usuários comuns. Para promover alguém a administrador, altere `"isAdmin"` para `true` na tabela `public.users`.
 
 ## Produção
 
@@ -50,6 +48,14 @@ VITE_SUPABASE_STORAGE_BUCKET="briefing-attachments"
 ```
 
 O arquivo `src/services/supabaseRepository.ts` já contém as operações para Auth, briefings, upload em Storage, relatórios, status e notificações.
+
+Para promover um usuário a administrador:
+
+```sql
+update public.users
+set "isAdmin" = true
+where email = 'email-do-admin@exemplo.com';
+```
 
 ## GitHub
 

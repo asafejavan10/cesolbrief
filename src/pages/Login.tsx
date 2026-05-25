@@ -1,4 +1,4 @@
-import { ArrowLeft, Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, ShieldCheck, UserPlus } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -8,8 +8,8 @@ import { useAuth } from '../contexts/AuthContext';
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@cesol.br');
-  const [senha, setSenha] = useState('cesol123');
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: FormEvent) {
@@ -50,7 +50,7 @@ export function Login() {
             <ShieldCheck size={24} />
           </div>
           <h1 className="mt-5 text-2xl font-black text-stone-950">Entrar no CesolBrief</h1>
-          <p className="mt-2 text-sm text-stone-500">Use admin@cesol.br ou tecnico@cesol.br com senha cesol123.</p>
+          <p className="mt-2 text-sm text-stone-500">Acesse com sua conta cadastrada. Permissões administrativas são liberadas pela gestão.</p>
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-stone-700">E-mail</span>
@@ -68,6 +68,9 @@ export function Login() {
           <button className="mt-4 text-sm font-bold text-cesol-800 hover:text-cesol-900" type="button" onClick={() => toast.info('Fluxo de recuperação preparado para integração de e-mail.')}>
             Recuperar senha
           </button>
+          <Link to="/cadastro" className="btn-secondary mt-5 w-full">
+            <UserPlus size={18} /> Criar conta
+          </Link>
         </div>
       </section>
     </main>

@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { login as loginService, logout as logoutService } from '../services/dataProvider';
+import { dataProviderName, login as loginService, logout as logoutService } from '../services/dataProvider';
 import { User } from '../types';
 
 type AuthContextValue = {
@@ -11,13 +11,14 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const SESSION_KEY = 'cesolbrief:session';
+const SESSION_KEY = `cesolbrief:session:${dataProviderName}`;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    localStorage.removeItem('cesolbrief:session');
     const session = localStorage.getItem(SESSION_KEY);
     if (session) setUser(JSON.parse(session) as User);
     setLoading(false);

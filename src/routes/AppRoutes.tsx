@@ -6,6 +6,7 @@ import { Dashboard } from '../pages/Dashboard';
 import { Home } from '../pages/Home';
 import { Login } from '../pages/Login';
 import { Reports } from '../pages/Reports';
+import { Signup } from '../pages/Signup';
 import { Success } from '../pages/Success';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -24,6 +25,7 @@ export function AppRoutes() {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Page><Home /></Page>} />
         <Route path="/login" element={<Page><Login /></Page>} />
+        <Route path="/cadastro" element={<Page><Signup /></Page>} />
         <Route element={<ProtectedRoute />}>
           <Route path="/briefing" element={<Page><BriefingForm /></Page>} />
           <Route path="/sucesso" element={<Page><Success /></Page>} />

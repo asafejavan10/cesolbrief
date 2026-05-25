@@ -91,6 +91,24 @@ export async function login(email: string, senha: string): Promise<User> {
   };
 }
 
+export async function registerUser(nome: string, email: string, senha: string): Promise<void> {
+  ensureSeed();
+  await delay(650);
+  const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
+  if (users.some((user) => user.email.toLowerCase() === email.toLowerCase())) {
+    throw new Error('Este e-mail já está cadastrado.');
+  }
+  users.push({
+    id: crypto.randomUUID(),
+    nome,
+    email,
+    senha,
+    isAdmin: false,
+    created_at: new Date().toISOString(),
+  });
+  write(USERS_KEY, users);
+}
+
 export function getBriefings(user?: User | null) {
   ensureSeed();
   const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);

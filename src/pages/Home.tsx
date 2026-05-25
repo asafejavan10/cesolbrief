@@ -32,6 +32,11 @@ export function Home() {
               <Link to={user ? '/dashboard' : '/login'} className="btn-secondary">
                 {user ? 'Abrir dashboard' : 'Entrar no sistema'}
               </Link>
+              {!user && (
+                <Link to="/cadastro" className="btn-secondary">
+                  Criar conta
+                </Link>
+              )}
             </div>
             <div className="mt-8 grid gap-3 text-sm font-semibold text-stone-600 sm:grid-cols-3">
               {['Multi-step', 'Upload de anexos', 'Dashboard SaaS'].map((item) => (

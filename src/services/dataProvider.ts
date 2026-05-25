@@ -4,9 +4,14 @@ import { isSupabaseConfigured } from './supabaseClient';
 import * as remote from './supabaseRepository';
 
 const useSupabase = import.meta.env.VITE_DATA_PROVIDER === 'supabase' && isSupabaseConfigured;
+export const dataProviderName = useSupabase ? 'supabase' : 'local';
 
 export async function login(email: string, password: string) {
   return useSupabase ? remote.signInWithSupabase(email, password) : local.login(email, password);
+}
+
+export async function register(nome: string, email: string, password: string) {
+  return useSupabase ? remote.signUpWithSupabase(nome, email, password) : local.registerUser(nome, email, password);
 }
 
 export async function logout() {

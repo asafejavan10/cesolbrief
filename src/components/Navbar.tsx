@@ -47,6 +47,9 @@ export function Navbar() {
               <Link to="/login" className="btn-secondary py-2">
                 Login
               </Link>
+              <Link to="/cadastro" className="btn-secondary py-2">
+                Criar conta
+              </Link>
               <Link to="/briefing" className="btn-primary py-2">
                 Criar briefing <ArrowRight size={16} />
               </Link>
@@ -65,6 +68,11 @@ export function Navbar() {
                 {item.label}
               </Link>
             ))}
+            {!user && (
+              <Link to="/cadastro" onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-100">
+                Criar conta
+              </Link>
+            )}
             <Link to={user ? '/dashboard' : '/login'} onClick={() => setOpen(false)} className="btn-primary mt-2">
               {user ? 'Dashboard' : 'Entrar'}
             </Link>

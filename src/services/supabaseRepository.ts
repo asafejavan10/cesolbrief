@@ -17,6 +17,18 @@ export async function signInWithSupabase(email: string, password: string): Promi
   return profile as User;
 }
 
+export async function signUpWithSupabase(nome: string, email: string, password: string): Promise<void> {
+  const api = client();
+  const { error } = await api.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { nome },
+    },
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function signOutSupabase() {
   const { error } = await client().auth.signOut();
   if (error) throw new Error(error.message);
