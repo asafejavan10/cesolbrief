@@ -68,7 +68,7 @@ export type Notification = {
   id: string;
   title: string;
   message: string;
-  type: 'novo_briefing' | 'briefing_concluido';
+  type: 'novo_briefing' | 'briefing_iniciado' | 'briefing_concluido';
   briefing_id: string;
   read: boolean;
   created_at: string;

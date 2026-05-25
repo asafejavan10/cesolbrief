@@ -58,11 +58,16 @@ create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   message text not null,
-  type text not null check (type in ('novo_briefing', 'briefing_concluido')),
+  type text not null check (type in ('novo_briefing', 'briefing_iniciado', 'briefing_concluido')),
   briefing_id uuid not null references public.briefings(id) on delete cascade,
   read boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+alter table public.notifications drop constraint if exists notifications_type_check;
+alter table public.notifications
+  add constraint notifications_type_check
+  check (type in ('novo_briefing', 'briefing_iniciado', 'briefing_concluido'));
 
 insert into public.settings (key, value)
 values ('briefings_paused', '{"paused": false}'::jsonb)
@@ -199,6 +204,9 @@ create policy "Admins can read notifications" on public.notifications
 
 create policy "Admins can manage notifications" on public.notifications
   for all using (public.is_admin()) with check (public.is_admin());
+
+create policy "Authenticated users can create notifications" on public.notifications
+  for insert with check (auth.role() = 'authenticated');
 
 create policy "Authenticated users can upload briefing attachments" on storage.objects
   for insert with check (

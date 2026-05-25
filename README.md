@@ -35,6 +35,8 @@ Configure as variáveis de ambiente:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_SUPABASE_STORAGE_BUCKET`
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
 
 ## Supabase
 
@@ -74,6 +76,23 @@ Em desenvolvimento local, use:
 ```text
 http://127.0.0.1:5173/redefinir-senha
 ```
+
+## Notificações por e-mail
+
+O app dispara e-mail para o e-mail cadastrado do solicitante quando ocorrer:
+
+- `NOVO BRIEFING`
+- `BRIEFING INICIADO`
+- `BRIEFING FINALIZADO`
+
+Na Vercel, configure:
+
+```env
+RESEND_API_KEY=re_xxxxxxxxx
+EMAIL_FROM=CesolBrief <briefings@seudominio.com>
+```
+
+Sem `RESEND_API_KEY`, o endpoint apenas ignora o envio e mantém o fluxo do sistema funcionando.
 
 ## GitHub
 

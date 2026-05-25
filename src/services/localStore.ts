@@ -1,4 +1,5 @@
 import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User } from '../types';
+import { notifyBriefingEmail } from './emailNotifications';
 import { validateAttachments } from '../utils/fileRules';
 
 const USERS_KEY = 'cesolbrief:users';
@@ -196,6 +197,12 @@ export async function createBriefing(draft: BriefingDraft, files: File[], user: 
     type: 'novo_briefing',
     briefing_id: briefing.id,
   });
+  void notifyBriefingEmail({
+    to: user.email,
+    event: 'novo_briefing',
+    empreendimento: briefing.empreendimento,
+    status: briefing.status,
+  });
   localStorage.removeItem('cesolbrief:draft');
   return briefing;
 }
@@ -218,12 +225,34 @@ export function updateBriefingStatus(id: string, status: BriefingStatus) {
         : briefing,
     ),
   );
+  if (current && current.status !== 'em_andamento' && status === 'em_andamento') {
+    addNotification({
+      title: 'Briefing iniciado',
+      message: `${current.empreendimento} foi marcado como em andamento.`,
+      type: 'briefing_iniciado',
+      briefing_id: current.id,
+    });
+    const owner = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers).find((item) => item.id === current.user_id);
+    void notifyBriefingEmail({
+      to: owner?.email,
+      event: 'briefing_iniciado',
+      empreendimento: current.empreendimento,
+      status,
+    });
+  }
   if (current && current.status !== 'concluido' && status === 'concluido') {
     addNotification({
       title: 'Briefing finalizado',
       message: `${current.empreendimento} foi marcado como concluído.`,
       type: 'briefing_concluido',
       briefing_id: current.id,
+    });
+    const owner = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers).find((item) => item.id === current.user_id);
+    void notifyBriefingEmail({
+      to: owner?.email,
+      event: 'briefing_concluido',
+      empreendimento: current.empreendimento,
+      status,
     });
   }
 }

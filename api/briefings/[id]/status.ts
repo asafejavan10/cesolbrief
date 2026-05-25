@@ -11,6 +11,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const previous = await sql`select empreendimento, status from briefings where id = ${id}`;
     const result = await sql`update briefings set status = ${body.status} where id = ${id} returning *`;
     await sql`insert into briefing_history (briefing_id, texto) values (${id}, ${`Status alterado para ${body.status}`})`;
+    if (previous.rows[0]?.status !== 'em_andamento' && body.status === 'em_andamento') {
+      await sql`
+        insert into notifications (title, message, type, briefing_id)
+        values ('Briefing iniciado', ${`${previous.rows[0]?.empreendimento || 'Briefing'} foi marcado como em andamento.`}, 'briefing_iniciado', ${id})
+      `;
+    }
     if (previous.rows[0]?.status !== 'concluido' && body.status === 'concluido') {
       await sql`
         insert into notifications (title, message, type, briefing_id)

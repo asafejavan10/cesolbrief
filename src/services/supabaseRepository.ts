@@ -1,4 +1,5 @@
 import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User } from '../types';
+import { notifyBriefingEmail } from './emailNotifications';
 import { validateAttachments } from '../utils/fileRules';
 import { supabase, supabaseBucket } from './supabaseClient';
 
@@ -110,22 +111,49 @@ export async function insertBriefing(draft: BriefingDraft, files: File[], user: 
     type: 'novo_briefing',
     briefing_id: briefing.id,
   });
+  void notifyBriefingEmail({
+    to: user.email,
+    event: 'novo_briefing',
+    empreendimento: briefing.empreendimento,
+    status: 'novo',
+  });
 
   return { ...(briefing as Briefing), arquivos: uploadedFiles, comentarios: [], historico: [] };
 }
 
 export async function setSupabaseBriefingStatus(id: string, status: BriefingStatus) {
   const api = client();
-  const { data: current } = await api.from('briefings').select('empreendimento,status').eq('id', id).single();
+  const { data: current } = await api.from('briefings').select('empreendimento,status,user_id').eq('id', id).single();
   const { error } = await api.from('briefings').update({ status }).eq('id', id);
   if (error) throw new Error(error.message);
   await api.from('briefing_history').insert({ briefing_id: id, texto: `Status alterado para ${status}` });
+  const { data: owner } = current?.user_id ? await api.from('users').select('email').eq('id', current.user_id).single() : { data: null };
+  if (current?.status !== 'em_andamento' && status === 'em_andamento') {
+    await api.from('notifications').insert({
+      title: 'Briefing iniciado',
+      message: `${current?.empreendimento || 'Briefing'} foi marcado como em andamento.`,
+      type: 'briefing_iniciado',
+      briefing_id: id,
+    });
+    void notifyBriefingEmail({
+      to: owner?.email,
+      event: 'briefing_iniciado',
+      empreendimento: current?.empreendimento || 'Briefing',
+      status,
+    });
+  }
   if (current?.status !== 'concluido' && status === 'concluido') {
     await api.from('notifications').insert({
       title: 'Briefing finalizado',
       message: `${current?.empreendimento || 'Briefing'} foi marcado como concluído.`,
       type: 'briefing_concluido',
       briefing_id: id,
+    });
+    void notifyBriefingEmail({
+      to: owner?.email,
+      event: 'briefing_concluido',
+      empreendimento: current?.empreendimento || 'Briefing',
+      status,
     });
   }
 }

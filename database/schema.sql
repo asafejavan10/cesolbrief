@@ -57,11 +57,16 @@ create table if not exists notifications (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   message text not null,
-  type text not null check (type in ('novo_briefing', 'briefing_concluido')),
+  type text not null check (type in ('novo_briefing', 'briefing_iniciado', 'briefing_concluido')),
   briefing_id uuid not null references briefings(id) on delete cascade,
   read boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+alter table notifications drop constraint if exists notifications_type_check;
+alter table notifications
+  add constraint notifications_type_check
+  check (type in ('novo_briefing', 'briefing_iniciado', 'briefing_concluido'));
 
 insert into settings (key, value)
 values ('briefings_paused', '{"paused": false}'::jsonb)
