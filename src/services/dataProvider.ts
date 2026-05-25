@@ -30,6 +30,10 @@ export async function updateUserRole(id: string, isAdmin: boolean) {
   return useSupabase ? remote.setSupabaseUserRole(id, isAdmin) : local.updateUserRole(id, isAdmin);
 }
 
+export async function removeUser(id: string) {
+  return useSupabase ? remote.removeSupabaseUserProfile(id) : local.removeUser(id);
+}
+
 export async function logout() {
   if (useSupabase) await remote.signOutSupabase();
 }

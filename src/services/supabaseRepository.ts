@@ -51,6 +51,11 @@ export async function setSupabaseUserRole(id: string, isAdmin: boolean): Promise
   if (error) throw new Error(error.message);
 }
 
+export async function removeSupabaseUserProfile(id: string): Promise<void> {
+  const { error } = await client().from('users').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 export async function signOutSupabase() {
   const { error } = await client().auth.signOut();
   if (error) throw new Error(error.message);

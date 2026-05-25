@@ -147,6 +147,14 @@ export async function updateUserRole(id: string, isAdmin: boolean): Promise<void
   );
 }
 
+export async function removeUser(id: string): Promise<void> {
+  const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
+  write(
+    USERS_KEY,
+    users.filter((user) => user.id !== id),
+  );
+}
+
 export function getBriefings(user?: User | null) {
   ensureSeed();
   const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
