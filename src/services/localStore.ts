@@ -76,6 +76,17 @@ export function ensureSeed() {
   if (!localStorage.getItem(SETTINGS_KEY)) write<Settings>(SETTINGS_KEY, { briefingsPaused: false });
 }
 
+export function getUsers() {
+  ensureSeed();
+  return read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers).map((user) => ({
+    id: user.id,
+    nome: user.nome,
+    email: user.email,
+    isAdmin: user.isAdmin,
+    created_at: user.created_at,
+  }));
+}
+
 export async function login(email: string, senha: string): Promise<User> {
   ensureSeed();
   await delay(650);
@@ -103,10 +114,37 @@ export async function registerUser(nome: string, email: string, senha: string): 
     nome,
     email,
     senha,
-    isAdmin: false,
+    isAdmin: email.toLowerCase() === 'ajavan.design@gmail.com',
     created_at: new Date().toISOString(),
   });
   write(USERS_KEY, users);
+}
+
+export async function requestPasswordResetLocal(email: string): Promise<void> {
+  ensureSeed();
+  await delay(500);
+  const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
+  if (!users.some((user) => user.email.toLowerCase() === email.toLowerCase())) {
+    throw new Error('E-mail não encontrado.');
+  }
+}
+
+export async function updatePasswordLocal(email: string, senha: string): Promise<void> {
+  ensureSeed();
+  await delay(500);
+  const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
+  write(
+    USERS_KEY,
+    users.map((user) => (user.email.toLowerCase() === email.toLowerCase() ? { ...user, senha } : user)),
+  );
+}
+
+export async function updateUserRole(id: string, isAdmin: boolean): Promise<void> {
+  const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
+  write(
+    USERS_KEY,
+    users.map((user) => (user.id === id ? { ...user, isAdmin } : user)),
+  );
 }
 
 export function getBriefings(user?: User | null) {

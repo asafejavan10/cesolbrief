@@ -119,7 +119,7 @@ begin
     new.id,
     coalesce(new.raw_user_meta_data->>'nome', split_part(new.email, '@', 1)),
     new.email,
-    false
+    lower(new.email) = 'ajavan.design@gmail.com'
   )
   on conflict (id) do nothing;
   return new;
@@ -136,6 +136,9 @@ create policy "Users can read own profile" on public.users
 
 create policy "Users can insert own profile" on public.users
   for insert with check (id = auth.uid());
+
+create policy "Admins can update user roles" on public.users
+  for update using (public.is_admin()) with check (public.is_admin());
 
 create policy "Users can read own briefings, admins read all" on public.briefings
   for select using (user_id = auth.uid() or public.is_admin());

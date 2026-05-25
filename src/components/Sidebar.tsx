@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, Home, LogOut, PauseCircle, Users } from 'lucide-react';
+import { BarChart3, ClipboardList, Home, LogOut, PauseCircle, UserCog, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { Logo } from './Logo';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,7 @@ const items = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/dashboard', label: 'Briefings', icon: ClipboardList },
   { to: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
+  { to: '/dashboard/usuarios', label: 'Usuários', icon: UserCog },
   { to: '/briefing', label: 'Novo briefing', icon: Users },
 ];
 

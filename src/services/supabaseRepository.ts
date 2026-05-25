@@ -29,6 +29,28 @@ export async function signUpWithSupabase(nome: string, email: string, password: 
   if (error) throw new Error(error.message);
 }
 
+export async function requestSupabasePasswordReset(email: string): Promise<void> {
+  const redirectTo = `${window.location.origin}/redefinir-senha`;
+  const { error } = await client().auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw new Error(error.message);
+}
+
+export async function updateSupabasePassword(password: string): Promise<void> {
+  const { error } = await client().auth.updateUser({ password });
+  if (error) throw new Error(error.message);
+}
+
+export async function fetchUsers(): Promise<User[]> {
+  const { data, error } = await client().from('users').select('id,nome,email,isAdmin,created_at').order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as User[];
+}
+
+export async function setSupabaseUserRole(id: string, isAdmin: boolean): Promise<void> {
+  const { error } = await client().from('users').update({ isAdmin }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 export async function signOutSupabase() {
   const { error } = await client().auth.signOut();
   if (error) throw new Error(error.message);

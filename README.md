@@ -23,6 +23,7 @@ npm run dev
 
 No modo Supabase, usuários devem ser criados pelo fluxo `/cadastro` ou pelo painel do Supabase.
 Contas criadas pelo app são sempre usuários comuns. Para promover alguém a administrador, altere `"isAdmin"` para `true` na tabela `public.users`.
+O e-mail `ajavan.design@gmail.com` está configurado como conta MASTER: ao se cadastrar, esse perfil recebe permissão administrativa automaticamente.
 
 ## Produção
 
@@ -55,6 +56,22 @@ Para promover um usuário a administrador:
 update public.users
 set "isAdmin" = true
 where email = 'email-do-admin@exemplo.com';
+```
+
+Admins também podem alterar perfis pela tela `/dashboard/usuarios`.
+
+## Recuperação de senha
+
+No Supabase, configure a URL do app em Authentication > URL Configuration e adicione a rota:
+
+```text
+https://seu-dominio.vercel.app/redefinir-senha
+```
+
+Em desenvolvimento local, use:
+
+```text
+http://127.0.0.1:5173/redefinir-senha
 ```
 
 ## GitHub

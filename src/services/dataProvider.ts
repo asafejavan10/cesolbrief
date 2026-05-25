@@ -14,6 +14,22 @@ export async function register(nome: string, email: string, password: string) {
   return useSupabase ? remote.signUpWithSupabase(nome, email, password) : local.registerUser(nome, email, password);
 }
 
+export async function requestPasswordReset(email: string) {
+  return useSupabase ? remote.requestSupabasePasswordReset(email) : local.requestPasswordResetLocal(email);
+}
+
+export async function updatePassword(email: string, password: string) {
+  return useSupabase ? remote.updateSupabasePassword(password) : local.updatePasswordLocal(email, password);
+}
+
+export async function getUsers() {
+  return useSupabase ? remote.fetchUsers() : local.getUsers();
+}
+
+export async function updateUserRole(id: string, isAdmin: boolean) {
+  return useSupabase ? remote.setSupabaseUserRole(id, isAdmin) : local.updateUserRole(id, isAdmin);
+}
+
 export async function logout() {
   if (useSupabase) await remote.signOutSupabase();
 }

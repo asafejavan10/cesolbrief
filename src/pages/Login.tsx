@@ -65,9 +65,9 @@ export function Login() {
               Entrar
             </button>
           </form>
-          <button className="mt-4 text-sm font-bold text-cesol-800 hover:text-cesol-900" type="button" onClick={() => toast.info('Fluxo de recuperação preparado para integração de e-mail.')}>
+          <Link to="/recuperar-senha" className="mt-4 inline-flex text-sm font-bold text-cesol-800 hover:text-cesol-900">
             Recuperar senha
-          </button>
+          </Link>
           <Link to="/cadastro" className="btn-secondary mt-5 w-full">
             <UserPlus size={18} /> Criar conta
           </Link>
