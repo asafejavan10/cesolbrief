@@ -1,7 +1,7 @@
 import { ArrowLeft, Download, MessageSquarePlus, Paperclip } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { useCallback, useEffect } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +12,7 @@ import { formatBytes, formatDate } from '../utils/format';
 
 export function BriefingDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [briefing, setBriefing] = useState<Briefing | null | undefined>(undefined);
   const [comment, setComment] = useState('');
@@ -33,6 +34,17 @@ export function BriefingDetail() {
     toast.success('Comentário interno adicionado.');
   }
 
+  async function changeStatus(status: BriefingStatus) {
+    if (!briefing) return;
+    await updateBriefingStatus(briefing.id, status);
+    if (status === 'concluido') {
+      toast.success('Briefing finalizado.');
+      navigate('/dashboard');
+      return;
+    }
+    await refresh();
+  }
+
   if (briefing === undefined) return <DashboardLayout><div className="p-8 text-sm font-semibold text-stone-500">Carregando briefing...</div></DashboardLayout>;
   if (!briefing) return <Navigate to="/dashboard" replace />;
 
@@ -47,7 +59,7 @@ export function BriefingDetail() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={briefing.status} />
-            <select className="input w-auto" value={briefing.status} onChange={(event) => { updateBriefingStatus(briefing.id, event.target.value as BriefingStatus).then(refresh); }}>
+            <select className="input w-auto" value={briefing.status} onChange={(event) => { void changeStatus(event.target.value as BriefingStatus); }}>
               <option value="novo">novo</option>
               <option value="em_andamento">em andamento</option>
               <option value="concluido">concluído</option>
