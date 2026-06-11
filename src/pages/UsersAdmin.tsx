@@ -1,11 +1,12 @@
-import { ShieldCheck, ShieldOff, Trash2, Users } from 'lucide-react';
+import { ShieldCheck, ShieldOff, Trash2, Users, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { MetricCard } from '../components/MetricCard';
+import { UserEditModal } from '../components/UserEditModal';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { getUsers, removeUser, updateUserRole } from '../services/dataProvider';
+import { getUsers, removeUser } from '../services/dataProvider';
 import { User } from '../types';
 import { formatDate } from '../utils/format';
 
@@ -13,6 +14,7 @@ export function UsersAdmin() {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [removeTarget, setRemoveTarget] = useState<User | null>(null);
+  const [editTarget, setEditTarget] = useState<User | null>(null);
 
   async function refresh() {
     setUsers(await getUsers());
@@ -21,16 +23,6 @@ export function UsersAdmin() {
   useEffect(() => {
     refresh().catch(() => setUsers([]));
   }, []);
-
-  async function changeRole(target: User, isAdmin: boolean) {
-    if (target.id === user?.id && !isAdmin) {
-      toast.error('Você não pode remover seu próprio acesso administrativo.');
-      return;
-    }
-    await updateUserRole(target.id, isAdmin);
-    await refresh();
-    toast.success(isAdmin ? 'Usuário promovido a admin.' : 'Usuário definido como comum.');
-  }
 
   async function confirmRemove() {
     if (!removeTarget) return;
@@ -59,12 +51,14 @@ export function UsersAdmin() {
         </div>
         <section className="mt-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-card">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left">
+            <table className="w-full min-w-[960px] text-left">
               <thead className="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
                 <tr>
                   <th className="px-5 py-4">Nome</th>
                   <th className="px-5 py-4">E-mail</th>
                   <th className="px-5 py-4">Perfil</th>
+                  <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">Limite Briefings</th>
                   <th className="px-5 py-4">Criado em</th>
                   <th className="px-5 py-4">Ações</th>
                 </tr>
@@ -72,21 +66,29 @@ export function UsersAdmin() {
               <tbody className="divide-y divide-stone-100">
                 {users.map((item) => (
                   <tr key={item.id}>
-                    <td className="px-5 py-4 font-bold text-stone-950">{item.nome}</td>
+                    <td className="px-5 py-4 text-sm font-bold text-stone-950">{item.nome}</td>
                     <td className="px-5 py-4 text-sm text-stone-600">{item.email}</td>
                     <td className="px-5 py-4">
-                      <span className={item.isAdmin ? 'rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200' : 'rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700 ring-1 ring-stone-200'}>
+                      <span className={item.isAdmin ? 'rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200 whitespace-nowrap' : 'rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700 ring-1 ring-stone-200 whitespace-nowrap'}>
                         {item.isAdmin ? 'Administrador' : 'Usuário comum'}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-sm text-stone-600">{formatDate(item.created_at)}</td>
+                    <td className="px-5 py-4">
+                      <span className={item.isBlocked ? 'rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-800 ring-1 ring-red-200 whitespace-nowrap' : 'rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200 whitespace-nowrap'}>
+                        {item.isBlocked ? 'Bloqueado' : 'Ativo'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-sm font-semibold text-stone-700 whitespace-nowrap">
+                      {item.limitBriefings !== null && item.limitBriefings !== undefined ? `${item.limitBriefings} briefing(s)` : 'Sem limite'}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-stone-600 whitespace-nowrap">{formatDate(item.created_at)}</td>
                     <td className="px-5 py-4">
                       <div className="flex flex-wrap gap-2">
-                        <button className="btn-secondary py-2" onClick={() => changeRole(item, !item.isAdmin)} type="button">
-                          {item.isAdmin ? 'Tornar comum' : 'Tornar admin'}
+                        <button className="btn-secondary px-3 py-1.5 text-xs font-bold whitespace-nowrap" onClick={() => setEditTarget(item)} type="button">
+                          <Settings size={14} /> Configurar
                         </button>
-                        <button className="btn-secondary py-2 text-red-700 hover:border-red-200 hover:text-red-800" onClick={() => setRemoveTarget(item)} type="button">
-                          <Trash2 size={16} /> Remover
+                        <button className="btn-secondary px-3 py-1.5 text-xs font-bold text-red-700 hover:border-red-200 hover:text-red-800 whitespace-nowrap" onClick={() => setRemoveTarget(item)} type="button">
+                          <Trash2 size={14} /> Remover
                         </button>
                       </div>
                     </td>
@@ -104,6 +106,14 @@ export function UsersAdmin() {
         onCancel={() => setRemoveTarget(null)}
         onConfirm={confirmRemove}
       />
+      {editTarget && (
+        <UserEditModal
+          open={Boolean(editTarget)}
+          targetUser={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSave={refresh}
+        />
+      )}
     </DashboardLayout>
   );
 }

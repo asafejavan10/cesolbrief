@@ -14,6 +14,8 @@ const defaultUsers: Array<User & { senha: string }> = [
     email: 'admin@cesol.br',
     senha: 'cesol123',
     isAdmin: true,
+    isBlocked: false,
+    limitBriefings: null,
     created_at: new Date().toISOString(),
   },
   {
@@ -22,6 +24,8 @@ const defaultUsers: Array<User & { senha: string }> = [
     email: 'tecnico@cesol.br',
     senha: 'cesol123',
     isAdmin: false,
+    isBlocked: false,
+    limitBriefings: null,
     created_at: new Date().toISOString(),
   },
 ];
@@ -84,6 +88,8 @@ export function getUsers() {
     nome: user.nome,
     email: user.email,
     isAdmin: user.isAdmin,
+    isBlocked: user.isBlocked || false,
+    limitBriefings: user.limitBriefings !== undefined ? user.limitBriefings : null,
     created_at: user.created_at,
   }));
 }
@@ -94,11 +100,14 @@ export async function login(email: string, senha: string): Promise<User> {
   const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
   const found = users.find((user) => user.email.toLowerCase() === email.toLowerCase() && user.senha === senha);
   if (!found) throw new Error('E-mail ou senha inválidos.');
+  if (found.isBlocked) throw new Error('Sua conta está bloqueada pelo administrador. Entre em contato com a administração.');
   return {
     id: found.id,
     nome: found.nome,
     email: found.email,
     isAdmin: found.isAdmin,
+    isBlocked: found.isBlocked || false,
+    limitBriefings: found.limitBriefings !== undefined ? found.limitBriefings : null,
     created_at: found.created_at,
   };
 }
@@ -116,6 +125,8 @@ export async function registerUser(nome: string, email: string, senha: string): 
     email,
     senha,
     isAdmin: email.toLowerCase() === 'ajavan.design@gmail.com',
+    isBlocked: false,
+    limitBriefings: null,
     created_at: new Date().toISOString(),
   });
   write(USERS_KEY, users);
@@ -137,6 +148,31 @@ export async function updatePasswordLocal(email: string, senha: string): Promise
   write(
     USERS_KEY,
     users.map((user) => (user.email.toLowerCase() === email.toLowerCase() ? { ...user, senha } : user)),
+  );
+}
+
+export async function getUserProfile(id: string): Promise<User> {
+  ensureSeed();
+  const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
+  const found = users.find((u) => u.id === id);
+  if (!found) throw new Error('Usuário não encontrado.');
+  return {
+    id: found.id,
+    nome: found.nome,
+    email: found.email,
+    isAdmin: found.isAdmin,
+    isBlocked: found.isBlocked || false,
+    limitBriefings: found.limitBriefings !== undefined ? found.limitBriefings : null,
+    created_at: found.created_at,
+  };
+}
+
+export async function updateUserProfile(id: string, updates: Partial<User>): Promise<void> {
+  ensureSeed();
+  const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
+  write(
+    USERS_KEY,
+    users.map((user) => (user.id === id ? { ...user, ...updates } : user)),
   );
 }
 
@@ -169,6 +205,21 @@ export function getBriefing(id: string) {
 export async function createBriefing(draft: BriefingDraft, files: File[], user: User) {
   const attachmentError = validateAttachments(files);
   if (attachmentError) throw new Error(attachmentError);
+
+  const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
+  const foundUser = users.find((u) => u.id === user.id);
+  if (foundUser) {
+    if (foundUser.isBlocked) {
+      throw new Error('Sua conta está bloqueada pelo administrador. Não é possível enviar novos briefings.');
+    }
+    if (foundUser.limitBriefings !== null && foundUser.limitBriefings !== undefined) {
+      const userBriefings = read<Briefing[]>(BRIEFINGS_KEY, []).filter((b) => b.user_id === user.id);
+      if (userBriefings.length >= foundUser.limitBriefings) {
+        throw new Error(`Limite de briefings atingido (${foundUser.limitBriefings} briefings).`);
+      }
+    }
+  }
+
   await delay(900);
   const briefingId = crypto.randomUUID();
   const arquivos: BriefingFile[] = files.map((file) => ({
@@ -298,6 +349,14 @@ export function markNotificationsRead() {
     NOTIFICATIONS_KEY,
     read<Notification[]>(NOTIFICATIONS_KEY, []).map((notification) => ({ ...notification, read: true })),
   );
+}
+
+export function deleteNotification(id: string) {
+  write(
+    NOTIFICATIONS_KEY,
+    read<Notification[]>(NOTIFICATIONS_KEY, []).filter((notification) => notification.id !== id),
+  );
+  window.dispatchEvent(new CustomEvent('cesolbrief:notifications'));
 }
 
 function addNotification(input: Omit<Notification, 'id' | 'read' | 'created_at'>) {

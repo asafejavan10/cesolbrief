@@ -26,6 +26,14 @@ export async function getUsers() {
   return useSupabase ? remote.fetchUsers() : local.getUsers();
 }
 
+export async function getUserProfile(id: string) {
+  return useSupabase ? remote.getUserProfile(id) : local.getUserProfile(id);
+}
+
+export async function updateUserProfile(id: string, updates: { isAdmin?: boolean; isBlocked?: boolean; limitBriefings?: number | null }) {
+  return useSupabase ? remote.updateSupabaseUserProfile(id, updates) : local.updateUserProfile(id, updates);
+}
+
 export async function updateUserRole(id: string, isAdmin: boolean) {
   return useSupabase ? remote.setSupabaseUserRole(id, isAdmin) : local.updateUserRole(id, isAdmin);
 }
@@ -77,4 +85,8 @@ export async function getNotifications() {
 
 export async function markNotificationsRead() {
   return useSupabase ? remote.markSupabaseNotificationsRead() : local.markNotificationsRead();
+}
+
+export async function deleteNotification(id: string) {
+  return useSupabase ? remote.deleteSupabaseNotification(id) : local.deleteNotification(id);
 }

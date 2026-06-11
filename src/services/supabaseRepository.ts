@@ -13,8 +13,12 @@ export async function signInWithSupabase(email: string, password: string): Promi
   const { data, error } = await api.auth.signInWithPassword({ email, password });
   if (error || !data.user) throw new Error(error?.message || 'Falha ao autenticar no Supabase.');
 
-  const { data: profile, error: profileError } = await api.from('users').select('id,nome,email,isAdmin,created_at').eq('id', data.user.id).single();
+  const { data: profile, error: profileError } = await api.from('users').select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at').eq('id', data.user.id).single();
   if (profileError) throw new Error(profileError.message);
+  if (profile.isBlocked) {
+    await api.auth.signOut();
+    throw new Error('Sua conta está bloqueada pelo administrador. Entre em contato com a administração.');
+  }
   return profile as User;
 }
 
@@ -42,13 +46,28 @@ export async function updateSupabasePassword(password: string): Promise<void> {
 }
 
 export async function fetchUsers(): Promise<User[]> {
-  const { data, error } = await client().from('users').select('id,nome,email,isAdmin,created_at').order('created_at', { ascending: false });
+  const { data, error } = await client().from('users').select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at').order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data || []) as User[];
 }
 
 export async function setSupabaseUserRole(id: string, isAdmin: boolean): Promise<void> {
   const { error } = await client().from('users').update({ isAdmin }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function getUserProfile(id: string): Promise<User> {
+  const { data, error } = await client()
+    .from('users')
+    .select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at')
+    .eq('id', id)
+    .single();
+  if (error) throw new Error(error.message);
+  return data as User;
+}
+
+export async function updateSupabaseUserProfile(id: string, updates: { isAdmin?: boolean; isBlocked?: boolean; limitBriefings?: number | null }): Promise<void> {
+  const { error } = await client().from('users').update(updates).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -88,6 +107,19 @@ export async function insertBriefing(draft: BriefingDraft, files: File[], user: 
   if (attachmentError) throw new Error(attachmentError);
 
   const api = client();
+
+  const { data: dbUser, error: userError } = await api.from('users').select('isBlocked,limitBriefings').eq('id', user.id).single();
+  if (userError) throw new Error(userError.message);
+  if (dbUser.isBlocked) throw new Error('Sua conta está bloqueada pelo administrador. Não é possível enviar novos briefings.');
+
+  if (dbUser.limitBriefings !== null && dbUser.limitBriefings !== undefined) {
+    const { count, error: countError } = await api.from('briefings').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+    if (countError) throw new Error(countError.message);
+    if (count !== null && count >= dbUser.limitBriefings) {
+      throw new Error(`Limite de briefings atingido (${dbUser.limitBriefings} briefings).`);
+    }
+  }
+
   const { data: settings } = await api.from('settings').select('value').eq('key', 'briefings_paused').single();
   if (!user.isAdmin && settings?.value?.paused) throw new Error('O recebimento de briefings está pausado.');
 
@@ -189,6 +221,11 @@ export async function fetchSupabaseNotifications(): Promise<Notification[]> {
 
 export async function markSupabaseNotificationsRead() {
   const { error } = await client().from('notifications').update({ read: true }).eq('read', false);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteSupabaseNotification(id: string) {
+  const { error } = await client().from('notifications').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
 

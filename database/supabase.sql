@@ -5,6 +5,8 @@ create table if not exists public.users (
   nome text not null,
   email text not null unique,
   "isAdmin" boolean not null default false,
+  "isBlocked" boolean not null default false,
+  "limitBriefings" integer default null,
   created_at timestamptz not null default now()
 );
 

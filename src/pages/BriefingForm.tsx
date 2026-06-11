@@ -7,7 +7,7 @@ import { FileUpload } from '../components/FileUpload';
 import { Navbar } from '../components/Navbar';
 import { ProgressBar } from '../components/ProgressBar';
 import { useAuth } from '../contexts/AuthContext';
-import { createBriefing, getSettings } from '../services/dataProvider';
+import { createBriefing, getSettings, getUserProfile, getBriefings } from '../services/dataProvider';
 import { BriefingDraft, ServiceName, ServiceType } from '../types';
 import { cn } from '../utils/cn';
 
@@ -35,6 +35,8 @@ export function BriefingForm() {
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [checkingLimit, setCheckingLimit] = useState(true);
+  const [limitError, setLimitError] = useState<string | null>(null);
   const total = 7;
   const progress = ((step + 1) / total) * 100;
 
@@ -45,6 +47,34 @@ export function BriefingForm() {
   useEffect(() => {
     getSettings().then((settings) => setPaused(settings.briefingsPaused && !user?.isAdmin)).catch(() => setPaused(false));
   }, [user?.isAdmin]);
+
+  useEffect(() => {
+    if (!user) return;
+    const userId = user.id;
+    
+    async function checkUserLimit() {
+      try {
+        const profile = await getUserProfile(userId);
+        if (profile.isBlocked) {
+          setLimitError('Sua conta está bloqueada pelo administrador. Não é possível enviar novos briefings.');
+          return;
+        }
+        if (profile.limitBriefings !== undefined && profile.limitBriefings !== null) {
+          const briefings = await getBriefings(profile);
+          if (briefings.length >= profile.limitBriefings) {
+            setLimitError(`Você atingiu o limite máximo de ${profile.limitBriefings} briefing(s) permitidos para sua conta.`);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao verificar limite do usuário:', err);
+      } finally {
+        setCheckingLimit(false);
+      }
+    }
+    
+    checkUserLimit();
+  }, [user]);
 
   const title = useMemo(() => ['Nome do Técnico', 'Tipo de Serviço', 'Serviço Específico', 'Nome do Empreendimento', 'Cidade', 'Descrição detalhada da demanda', 'Anexos'][step], [step]);
 
@@ -103,45 +133,71 @@ export function BriefingForm() {
           </div>
         )}
         <section className="panel flex flex-1 flex-col justify-center p-5 sm:p-8 lg:p-10">
-          <AnimatePresence mode="wait">
-            <motion.div key={step} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.24 }}>
-              <h1 className="text-3xl font-black text-stone-950 sm:text-4xl">{title}</h1>
-              <div className="mt-8">
-                {step === 0 && <OptionGrid items={agentes} value={draft.agente} onChange={(agente) => setDraft({ ...draft, agente })} />}
-                {step === 1 && <OptionGrid items={['CRIAÇÃO', 'MELHORIA']} value={draft.tipo_servico} onChange={(tipo_servico) => setDraft({ ...draft, tipo_servico: tipo_servico as ServiceType })} />}
-                {step === 2 && (
-                  <div className="space-y-5">
-                    <OptionGrid items={servicos} value={draft.servico} onChange={(servico) => setDraft({ ...draft, servico: servico as ServiceName })} />
-                    {draft.servico === 'Outro' && <input className="input" value={draft.servico_outro} onChange={(event) => setDraft({ ...draft, servico_outro: event.target.value })} placeholder="Especifique o serviço" />}
-                  </div>
-                )}
-                {step === 3 && <input className="input text-lg" value={draft.empreendimento} onChange={(event) => setDraft({ ...draft, empreendimento: event.target.value })} placeholder="Ex.: Sabores da Serra" />}
-                {step === 4 && <input className="input text-lg" value={draft.cidade} onChange={(event) => setDraft({ ...draft, cidade: event.target.value })} placeholder="Ex.: Jacobina" />}
-                {step === 5 && (
-                  <div>
-                    <textarea className="input min-h-56 resize-none text-base leading-7" value={draft.descricao} onChange={(event) => setDraft({ ...draft, descricao: event.target.value })} placeholder="Descreva objetivo, público, referências, prazos e observações importantes." />
-                    <p className={cn('mt-2 text-right text-sm font-semibold', draft.descricao.length < 10 ? 'text-red-500' : 'text-emerald-600')}>{draft.descricao.length} caracteres</p>
-                  </div>
-                )}
-                {step === 6 && <FileUpload files={files} onChange={setFiles} />}
+          {checkingLimit ? (
+            <div className="flex flex-col items-center justify-center py-12 text-stone-500">
+              <Loader2 className="animate-spin text-cesol-600 mb-3" size={32} />
+              <p className="text-sm font-semibold">Verificando permissões de acesso...</p>
+            </div>
+          ) : limitError ? (
+            <div className="flex flex-col items-center justify-center text-center py-8">
+              <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-red-50 text-red-600">
+                <PauseCircle size={28} />
               </div>
-            </motion.div>
-          </AnimatePresence>
-          <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-            <button className="btn-secondary" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={step === 0 || submitting} type="button">
-              <ArrowLeft size={18} /> Anterior
-            </button>
-            {step < total - 1 ? (
-              <button className="btn-primary" onClick={next} type="button">
-                Próxima <ArrowRight size={18} />
+              <h2 className="text-2xl font-black text-stone-950">Acesso Restrito</h2>
+              <p className="mt-2 max-w-md text-sm leading-6 text-stone-600">
+                {limitError}
+              </p>
+              <button
+                onClick={() => navigate('/briefing')}
+                className="btn-primary mt-6"
+                type="button"
+              >
+                Voltar aos Briefings
               </button>
-            ) : (
-              <button className="btn-primary" disabled={submitting || paused} onClick={submit} type="button">
-                {submitting ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
-                Finalizar briefing
-              </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              <AnimatePresence mode="wait">
+                <motion.div key={step} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.24 }}>
+                  <h1 className="text-3xl font-black text-stone-950 sm:text-4xl">{title}</h1>
+                  <div className="mt-8">
+                    {step === 0 && <OptionGrid items={agentes} value={draft.agente} onChange={(agente) => setDraft({ ...draft, agente })} />}
+                    {step === 1 && <OptionGrid items={['CRIAÇÃO', 'MELHORIA']} value={draft.tipo_servico} onChange={(tipo_servico) => setDraft({ ...draft, tipo_servico: tipo_servico as ServiceType })} />}
+                    {step === 2 && (
+                      <div className="space-y-5">
+                        <OptionGrid items={servicos} value={draft.servico} onChange={(servico) => setDraft({ ...draft, servico: servico as ServiceName })} />
+                        {draft.servico === 'Outro' && <input className="input" value={draft.servico_outro} onChange={(event) => setDraft({ ...draft, servico_outro: event.target.value })} placeholder="Especifique o serviço" />}
+                      </div>
+                    )}
+                    {step === 3 && <input className="input text-lg" value={draft.empreendimento} onChange={(event) => setDraft({ ...draft, empreendimento: event.target.value })} placeholder="Ex.: Sabores da Serra" />}
+                    {step === 4 && <input className="input text-lg" value={draft.cidade} onChange={(event) => setDraft({ ...draft, cidade: event.target.value })} placeholder="Ex.: Jacobina" />}
+                    {step === 5 && (
+                      <div>
+                        <textarea className="input min-h-56 resize-none text-base leading-7" value={draft.descricao} onChange={(event) => setDraft({ ...draft, descricao: event.target.value })} placeholder="Descreva objetivo, público, referências, prazos e observações importantes." />
+                        <p className={cn('mt-2 text-right text-sm font-semibold', draft.descricao.length < 10 ? 'text-red-500' : 'text-emerald-600')}>{draft.descricao.length} caracteres</p>
+                      </div>
+                    )}
+                    {step === 6 && <FileUpload files={files} onChange={setFiles} />}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+              <div className="mt-10 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+                <button className="btn-secondary" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={step === 0 || submitting} type="button">
+                  <ArrowLeft size={18} /> Anterior
+                </button>
+                {step < total - 1 ? (
+                  <button className="btn-primary" onClick={next} type="button">
+                    Próxima <ArrowRight size={18} />
+                  </button>
+                ) : (
+                  <button className="btn-primary" disabled={submitting || paused} onClick={submit} type="button">
+                    {submitting ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
+                    Finalizar briefing
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </section>
       </main>
     </div>

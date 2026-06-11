@@ -5,6 +5,8 @@ export type User = {
   nome: string;
   email: string;
   isAdmin: boolean;
+  isBlocked?: boolean;
+  limitBriefings?: number | null;
   created_at: string;
 };
 

@@ -4,6 +4,8 @@ create table if not exists users (
   email text not null unique,
   senha text not null,
   isAdmin boolean not null default false,
+  isBlocked boolean not null default false,
+  limitBriefings integer default null,
   created_at timestamptz not null default now()
 );
 
