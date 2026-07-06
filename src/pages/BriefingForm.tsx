@@ -18,7 +18,6 @@ import {
   Download
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { FileUpload } from '../components/FileUpload';
 import { Navbar } from '../components/Navbar';
@@ -43,7 +42,6 @@ const initialDraft: BriefingDraft = {
 
 export function BriefingForm() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'portal' | 'create' | 'list'>('portal');
   const [briefingsList, setBriefingsList] = useState<Briefing[]>([]);
   const [expandedBriefingId, setExpandedBriefingId] = useState<string | null>(null);

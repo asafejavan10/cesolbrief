@@ -303,7 +303,6 @@ export function deleteBriefing(id: string) {
 
 export function addComment(id: string, autor: string, texto: string) {
   const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
-  const current = briefings.find((briefing) => briefing.id === id);
   
   write(
     BRIEFINGS_KEY,

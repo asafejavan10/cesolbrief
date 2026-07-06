@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Shield, ShieldAlert, Ban, Check, X, Info } from 'lucide-react';
+import { Shield, ShieldAlert, Ban, X, Info } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile } from '../services/dataProvider';
 import { User } from '../types';

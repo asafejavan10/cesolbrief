@@ -8,7 +8,7 @@ import { MetricCard } from '../components/MetricCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { deleteBriefing, getBriefings, getSettings, setBriefingsPaused, updateBriefingStatus, closeQuarter, openQuarter } from '../services/dataProvider';
+import { deleteBriefing, getBriefings, getSettings, updateBriefingStatus, closeQuarter, openQuarter } from '../services/dataProvider';
 import { Briefing } from '../types';
 import { BriefingStatus } from '../types';
 import { formatDate } from '../utils/format';
