@@ -1,5 +1,4 @@
 import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User } from '../types';
-import { notifyBriefingEmail } from './emailNotifications';
 import { validateAttachments } from '../utils/fileRules';
 import { supabase, supabaseBucket } from './supabaseClient';
 
@@ -123,9 +122,12 @@ export async function insertBriefing(draft: BriefingDraft, files: File[], user: 
   const { data: settings } = await api.from('settings').select('value').eq('key', 'briefings_paused').single();
   if (!user.isAdmin && settings?.value?.paused) throw new Error('O recebimento de briefings está pausado.');
 
+  const activeQuarter = Number(settings?.value?.active_quarter ?? 8);
+  const trimestreString = `${activeQuarter}º Trimestre/051.2024`;
+
   const { data: briefing, error } = await api
     .from('briefings')
-    .insert({ ...draft, status: 'novo', situacao: 'ativo', user_id: user.id })
+    .insert({ ...draft, status: 'novo', situacao: 'ativo', user_id: user.id, trimestre: trimestreString })
     .select()
     .single();
   if (error) throw new Error(error.message);
@@ -143,12 +145,6 @@ export async function insertBriefing(draft: BriefingDraft, files: File[], user: 
     type: 'novo_briefing',
     briefing_id: briefing.id,
   });
-  void notifyBriefingEmail({
-    to: user.email,
-    event: 'novo_briefing',
-    empreendimento: briefing.empreendimento,
-    status: 'novo',
-  });
 
   return { ...(briefing as Briefing), arquivos: uploadedFiles, comentarios: [], historico: [] };
 }
@@ -159,19 +155,13 @@ export async function setSupabaseBriefingStatus(id: string, status: BriefingStat
   const { error } = await api.from('briefings').update({ status }).eq('id', id);
   if (error) throw new Error(error.message);
   await api.from('briefing_history').insert({ briefing_id: id, texto: `Status alterado para ${status}` });
-  const { data: owner } = current?.user_id ? await api.from('users').select('email').eq('id', current.user_id).single() : { data: null };
+  
   if (current?.status !== 'em_andamento' && status === 'em_andamento') {
     await api.from('notifications').insert({
       title: 'Briefing iniciado',
       message: `${current?.empreendimento || 'Briefing'} foi marcado como em andamento.`,
       type: 'briefing_iniciado',
       briefing_id: id,
-    });
-    void notifyBriefingEmail({
-      to: owner?.email,
-      event: 'briefing_iniciado',
-      empreendimento: current?.empreendimento || 'Briefing',
-      status,
     });
   }
   if (current?.status !== 'concluido' && status === 'concluido') {
@@ -180,12 +170,6 @@ export async function setSupabaseBriefingStatus(id: string, status: BriefingStat
       message: `${current?.empreendimento || 'Briefing'} foi marcado como concluído.`,
       type: 'briefing_concluido',
       briefing_id: id,
-    });
-    void notifyBriefingEmail({
-      to: owner?.email,
-      event: 'briefing_concluido',
-      empreendimento: current?.empreendimento || 'Briefing',
-      status,
     });
   }
 }
@@ -196,20 +180,70 @@ export async function removeSupabaseBriefing(id: string) {
 }
 
 export async function insertSupabaseComment(id: string, autor: string, texto: string) {
-  const { error } = await client().from('briefing_comments').insert({ briefing_id: id, autor, texto });
+  const api = client();
+  const { error } = await api.from('briefing_comments').insert({ briefing_id: id, autor, texto });
   if (error) throw new Error(error.message);
 }
 
 export async function fetchSupabaseSettings(): Promise<Settings> {
   const { data, error } = await client().from('settings').select('value').eq('key', 'briefings_paused').single();
   if (error) throw new Error(error.message);
-  return { briefingsPaused: Boolean(data?.value?.paused) };
+  return {
+    briefingsPaused: Boolean(data?.value?.paused),
+    activeQuarter: Number(data?.value?.active_quarter ?? 8),
+    maxClosedQuarter: Number(data?.value?.max_closed_quarter ?? 7),
+  };
 }
 
 export async function setSupabaseBriefingsPaused(briefingsPaused: boolean) {
-  const { error } = await client()
+  const api = client();
+  const { data } = await api.from('settings').select('value').eq('key', 'briefings_paused').single();
+  const current = data?.value || { active_quarter: 8, max_closed_quarter: 7 };
+  const { error } = await api
     .from('settings')
-    .upsert({ key: 'briefings_paused', value: { paused: briefingsPaused }, updated_at: new Date().toISOString() });
+    .upsert({
+      key: 'briefings_paused',
+      value: { ...current, paused: briefingsPaused },
+      updated_at: new Date().toISOString(),
+    });
+  if (error) throw new Error(error.message);
+}
+
+export async function closeSupabaseQuarter(quarterNumber: number) {
+  const api = client();
+  const { data } = await api.from('settings').select('value').eq('key', 'briefings_paused').single();
+  const current = data?.value || { active_quarter: quarterNumber, max_closed_quarter: quarterNumber - 1 };
+  const { error } = await api
+    .from('settings')
+    .upsert({
+      key: 'briefings_paused',
+      value: {
+        ...current,
+        paused: true,
+        max_closed_quarter: quarterNumber,
+      },
+      updated_at: new Date().toISOString(),
+    });
+  if (error) throw new Error(error.message);
+}
+
+export async function openSupabaseQuarter(quarterNumber: number) {
+  const api = client();
+  const { data } = await api.from('settings').select('value').eq('key', 'briefings_paused').single();
+  const current = data?.value || { active_quarter: quarterNumber, max_closed_quarter: quarterNumber - 1 };
+  const newMaxClosed = current.max_closed_quarter >= quarterNumber ? quarterNumber - 1 : current.max_closed_quarter;
+  const { error } = await api
+    .from('settings')
+    .upsert({
+      key: 'briefings_paused',
+      value: {
+        ...current,
+        paused: false,
+        active_quarter: quarterNumber,
+        max_closed_quarter: newMaxClosed,
+      },
+      updated_at: new Date().toISOString(),
+    });
   if (error) throw new Error(error.message);
 }
 

@@ -51,7 +51,7 @@ export function FileUpload({ files, onChange }: { files: File[]; onChange: (file
           <UploadCloud size={28} />
         </div>
         <p className="mt-4 text-lg font-black text-stone-950">Arraste arquivos ou clique para enviar</p>
-        <p className="mt-2 text-sm text-stone-500">Imagens, PDFs e documentos. Até {MAX_ATTACHMENTS} anexos, 5 MB por arquivo.</p>
+        <p className="mt-2 text-sm text-stone-500">Imagens, PDFs e documentos. Até {MAX_ATTACHMENTS} anexos (máx. 2 MB para imagens/docs, 5 MB para PDF).</p>
       </label>
 
       {files.length > 0 && (

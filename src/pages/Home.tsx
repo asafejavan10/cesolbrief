@@ -15,13 +15,13 @@ export function Home() {
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
-      <section className="relative overflow-hidden bg-[linear-gradient(180deg,#fff7e7_0%,#ffffff_72%)]">
+      <section className="relative overflow-hidden bg-[linear-gradient(180deg,#fff5f5_0%,#ffffff_72%)]">
         <div className="mx-auto grid min-h-[calc(100vh-73px)] max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:px-8">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cesol-200 bg-white px-3 py-1 text-xs font-bold text-cesol-800 shadow-sm">
               <Sparkles size={14} /> Sistema CESOL para demandas criativas
             </div>
-            <h1 className="mt-6 max-w-3xl text-4xl font-black leading-tight text-stone-950 sm:text-5xl lg:text-6xl">CesolBrief</h1>
+            <h1 className="mt-6 max-w-3xl text-4xl font-black leading-tight text-stone-950 sm:text-5xl lg:text-6xl">Cesol<span className="text-cesol-600">Brief</span></h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-600">
               Centralize solicitações de design e comunicação em briefings completos, rastreáveis e fáceis de priorizar.
             </p>

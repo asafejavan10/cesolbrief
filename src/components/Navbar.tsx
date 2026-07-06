@@ -8,15 +8,21 @@ import { cn } from '../utils/cn';
 export function Navbar() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
-  const items = [
-    { to: '/', label: 'Início' },
-    { to: '/briefing', label: 'Novo briefing' },
-  ];
+
+  const homePath = user ? (user.isAdmin ? '/dashboard' : '/briefing') : '/login';
+  const items = user?.isAdmin
+    ? [
+        { to: '/dashboard', label: 'Painel' },
+        { to: '/briefing', label: 'Novo briefing' },
+      ]
+    : [
+        { to: '/briefing', label: 'Novo briefing' },
+      ];
 
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200/80 bg-white/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <Link to="/" aria-label="CesolBrief">
+        <Link to={homePath} aria-label="CesolBrief">
           <Logo />
         </Link>
         <nav className="hidden items-center gap-2 md:flex">
@@ -35,9 +41,11 @@ export function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           {user ? (
             <>
-              <Link to="/dashboard" className="btn-secondary py-2">
-                <LayoutDashboard size={16} /> Dashboard
-              </Link>
+              {user.isAdmin && (
+                <Link to="/dashboard" className="btn-secondary py-2">
+                  <LayoutDashboard size={16} /> Dashboard
+                </Link>
+              )}
               <button onClick={logout} className="btn-secondary py-2" type="button">
                 <LogOut size={16} /> Sair
               </button>
@@ -73,8 +81,8 @@ export function Navbar() {
                 Criar conta
               </Link>
             )}
-            <Link to={user ? '/dashboard' : '/login'} onClick={() => setOpen(false)} className="btn-primary mt-2">
-              {user ? 'Dashboard' : 'Entrar'}
+            <Link to={user ? (user.isAdmin ? '/dashboard' : '/briefing') : '/login'} onClick={() => setOpen(false)} className="btn-primary mt-2">
+              {user ? (user.isAdmin ? 'Dashboard' : 'Novo briefing') : 'Entrar'}
             </Link>
           </div>
         </div>

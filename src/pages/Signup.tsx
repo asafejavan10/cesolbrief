@@ -47,7 +47,7 @@ export function Signup() {
   return (
     <main className="grid min-h-screen bg-stone-50 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:p-0">
       <section className="hidden bg-[linear-gradient(135deg,#78350f,#b45309_45%,#f59e0b)] p-10 text-white lg:flex lg:flex-col lg:justify-between">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-amber-100">
+        <Link to="/login" className="inline-flex items-center gap-2 text-sm font-bold text-amber-100">
           <ArrowLeft size={17} /> Voltar
         </Link>
         <div>

@@ -4,7 +4,6 @@ import { BriefingDetail } from '../pages/BriefingDetail';
 import { BriefingForm } from '../pages/BriefingForm';
 import { Dashboard } from '../pages/Dashboard';
 import { ForgotPassword } from '../pages/ForgotPassword';
-import { Home } from '../pages/Home';
 import { Login } from '../pages/Login';
 import { Reports } from '../pages/Reports';
 import { ResetPassword } from '../pages/ResetPassword';
@@ -26,7 +25,7 @@ export function AppRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Page><Home /></Page>} />
+        <Route path="/" element={<Page><Login /></Page>} />
         <Route path="/login" element={<Page><Login /></Page>} />
         <Route path="/cadastro" element={<Page><Signup /></Page>} />
         <Route path="/recuperar-senha" element={<Page><ForgotPassword /></Page>} />
@@ -45,3 +44,4 @@ export function AppRoutes() {
     </AnimatePresence>
   );
 }
+

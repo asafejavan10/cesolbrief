@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { addComment, getBriefing, updateBriefingStatus } from '../services/dataProvider';
 import { Briefing, BriefingStatus } from '../types';
+import { cn } from '../utils/cn';
 import { formatBytes, formatDate } from '../utils/format';
 
 export function BriefingDetail() {
@@ -59,11 +60,44 @@ export function BriefingDetail() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={briefing.status} />
-            <select className="input w-auto" value={briefing.status} onChange={(event) => { void changeStatus(event.target.value as BriefingStatus); }}>
-              <option value="novo">novo</option>
-              <option value="em_andamento">em andamento</option>
-              <option value="concluido">concluído</option>
-            </select>
+            <div className="flex items-center gap-1 rounded-xl border border-stone-200 bg-stone-50 p-1">
+              <button
+                type="button"
+                onClick={() => void changeStatus('novo')}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200",
+                  briefing.status === 'novo'
+                    ? "bg-white text-amber-800 shadow-sm border border-stone-200/50"
+                    : "text-stone-500 hover:text-stone-800"
+                )}
+              >
+                Novo
+              </button>
+              <button
+                type="button"
+                onClick={() => void changeStatus('em_andamento')}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200",
+                  briefing.status === 'em_andamento'
+                    ? "bg-white text-blue-800 shadow-sm border border-stone-200/50"
+                    : "text-stone-500 hover:text-stone-800"
+                )}
+              >
+                Em andamento
+              </button>
+              <button
+                type="button"
+                onClick={() => void changeStatus('concluido')}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200",
+                  briefing.status === 'concluido'
+                    ? "bg-white text-emerald-800 shadow-sm border border-stone-200/50"
+                    : "text-stone-500 hover:text-stone-800"
+                )}
+              >
+                Concluído
+              </button>
+            </div>
           </div>
         </div>
       </div>

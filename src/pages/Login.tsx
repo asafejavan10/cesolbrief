@@ -1,16 +1,26 @@
-import { ArrowLeft, Loader2, Mail, ShieldCheck, UserPlus } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { Loader2, Mail, ShieldCheck, UserPlus } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Logo } from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Login() {
-  const { login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (user.isAdmin) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/briefing', { replace: true });
+      }
+    }
+  }, [user, authLoading, navigate]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -21,7 +31,6 @@ export function Login() {
     setLoading(true);
     try {
       await login(email, senha);
-      navigate('/dashboard');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Falha ao entrar.');
     } finally {
@@ -29,12 +38,14 @@ export function Login() {
     }
   }
 
+  if (authLoading) {
+    return <div className="grid min-h-screen place-items-center bg-stone-50 text-sm font-semibold text-stone-500">Carregando...</div>;
+  }
+
   return (
     <main className="grid min-h-screen bg-stone-50 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:p-0">
       <section className="hidden bg-[linear-gradient(135deg,#78350f,#b45309_45%,#f59e0b)] p-10 text-white lg:flex lg:flex-col lg:justify-between">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-amber-100">
-          <ArrowLeft size={17} /> Voltar
-        </Link>
+        <div />
         <div>
           <h1 className="max-w-xl text-5xl font-black leading-tight">Produtividade para quem transforma demanda em criação.</h1>
           <p className="mt-5 max-w-md text-lg leading-8 text-amber-50">Acesse o painel, acompanhe solicitações e mantenha o fluxo da equipe organizado.</p>

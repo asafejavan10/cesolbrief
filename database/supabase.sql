@@ -21,6 +21,7 @@ create table if not exists public.briefings (
   descricao text not null,
   status text not null default 'novo' check (status in ('novo', 'em_andamento', 'concluido')),
   situacao text not null default 'ativo',
+  trimestre text,
   created_at timestamptz not null default now(),
   user_id uuid references public.users(id) on delete set null
 );
@@ -72,7 +73,7 @@ alter table public.notifications
   check (type in ('novo_briefing', 'briefing_iniciado', 'briefing_concluido'));
 
 insert into public.settings (key, value)
-values ('briefings_paused', '{"paused": false}'::jsonb)
+values ('briefings_paused', '{"paused": false, "active_quarter": 8, "max_closed_quarter": 7}'::jsonb)
 on conflict (key) do nothing;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

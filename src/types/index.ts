@@ -50,6 +50,7 @@ export type Briefing = {
   descricao: string;
   status: BriefingStatus;
   situacao: BriefingSituation;
+  trimestre?: string | null;
   created_at: string;
   user_id: string;
   arquivos: BriefingFile[];
@@ -64,6 +65,8 @@ export type BriefingDraft = Pick<
 
 export type Settings = {
   briefingsPaused: boolean;
+  activeQuarter: number;
+  maxClosedQuarter: number;
 };
 
 export type Notification = {

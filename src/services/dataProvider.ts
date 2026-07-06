@@ -79,6 +79,14 @@ export async function setBriefingsPaused(briefingsPaused: boolean) {
   return useSupabase ? remote.setSupabaseBriefingsPaused(briefingsPaused) : local.setBriefingsPaused(briefingsPaused);
 }
 
+export async function closeQuarter(quarterNumber: number) {
+  return useSupabase ? remote.closeSupabaseQuarter(quarterNumber) : local.closeQuarter(quarterNumber);
+}
+
+export async function openQuarter(quarterNumber: number) {
+  return useSupabase ? remote.openSupabaseQuarter(quarterNumber) : local.openQuarter(quarterNumber);
+}
+
 export async function getNotifications() {
   return useSupabase ? remote.fetchSupabaseNotifications() : local.getNotifications();
 }
