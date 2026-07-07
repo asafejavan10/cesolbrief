@@ -8,7 +8,7 @@ import { MetricCard } from '../components/MetricCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { deleteBriefing, getBriefings, getSettings, updateBriefingStatus, closeQuarter, openQuarter } from '../services/dataProvider';
+import { deleteBriefing, getBriefings, getSettings, updateBriefingStatus, closeQuarter, openQuarter, getUsers } from '../services/dataProvider';
 import { Briefing } from '../types';
 import { BriefingStatus } from '../types';
 import { formatDate } from '../utils/format';
@@ -27,6 +27,23 @@ export function Dashboard() {
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [openQuarterModal, setOpenQuarterModal] = useState(false);
   const [quarterInput, setQuarterInput] = useState('');
+  const [tecnicos, setTecnicos] = useState<string[]>([]);
+
+  useEffect(() => {
+    getUsers()
+      .then((usersList) => {
+        const registeredTecnicos = usersList.filter((u) => !u.isAdmin).map((u) => u.nome);
+        const briefingAgentes = briefings.map((b) => b.agente).filter(Boolean);
+        const allNames = [...registeredTecnicos, ...briefingAgentes];
+        const uniqueNames = Array.from(new Set(allNames)).sort((a, b) => a.localeCompare(b));
+        setTecnicos(uniqueNames);
+      })
+      .catch(() => {
+        const briefingAgentes = briefings.map((b) => b.agente).filter(Boolean);
+        const uniqueNames = Array.from(new Set(briefingAgentes)).sort((a, b) => a.localeCompare(b));
+        setTecnicos(uniqueNames);
+      });
+  }, [briefings]);
 
   const filtered = useMemo(() => {
     return briefings
@@ -139,14 +156,29 @@ export function Dashboard() {
       </div>
       <div className="panel mt-6 p-4">
         <div className="grid gap-3 lg:grid-cols-[1fr_150px_150px_150px_150px]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-3.5 text-stone-400" size={18} />
-            <input className="input pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar..." />
-          </div>
-          <Select value={status} onChange={setStatus} options={['todos', 'novo', 'em_andamento', 'concluido']} />
-          <Select value={trimestre} onChange={setTrimestre} options={trimestresOptions} />
-          <Select value={agente} onChange={setAgente} options={['todos', 'Wendel', 'Deive', 'Andiara', 'Débora', 'Lusimere']} />
-          <Select value={servico} onChange={setServico} options={['todos', 'Rotulagem', 'Logotipo', 'Rede Social', 'Outro']} />
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Pesquisar</span>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-3.5 text-stone-400" size={18} />
+              <input className="input pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar por empreendimento, cidade ou técnico..." />
+            </div>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Status</span>
+            <Select value={status} onChange={setStatus} options={['todos', 'novo', 'em_andamento', 'concluido']} />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Trimestre</span>
+            <Select value={trimestre} onChange={setTrimestre} options={trimestresOptions} />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Técnico</span>
+            <Select value={agente} onChange={setAgente} options={['todos', ...tecnicos]} />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Serviço</span>
+            <Select value={servico} onChange={setServico} options={['todos', 'Rotulagem', 'Logotipo', 'Rede Social', 'Outro']} />
+          </label>
         </div>
       </div>
         <div className="mt-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-card">

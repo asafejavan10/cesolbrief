@@ -6,7 +6,7 @@ import { MetricCard } from '../components/MetricCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { getBriefings } from '../services/dataProvider';
+import { getBriefings, getUsers } from '../services/dataProvider';
 import { Briefing } from '../types';
 import { exportCsv, exportExcel, exportPdf } from '../utils/exportReports';
 import { formatDate } from '../utils/format';
@@ -17,6 +17,23 @@ export function Reports() {
   const [status, setStatus] = useState('todos');
   const [agente, setAgente] = useState('todos');
   const [servico, setServico] = useState('todos');
+  const [tecnicos, setTecnicos] = useState<string[]>([]);
+
+  useEffect(() => {
+    getUsers()
+      .then((usersList) => {
+        const registeredTecnicos = usersList.filter((u) => !u.isAdmin).map((u) => u.nome);
+        const briefingAgentes = briefings.map((b) => b.agente).filter(Boolean);
+        const allNames = [...registeredTecnicos, ...briefingAgentes];
+        const uniqueNames = Array.from(new Set(allNames)).sort((a, b) => a.localeCompare(b));
+        setTecnicos(uniqueNames);
+      })
+      .catch(() => {
+        const briefingAgentes = briefings.map((b) => b.agente).filter(Boolean);
+        const uniqueNames = Array.from(new Set(briefingAgentes)).sort((a, b) => a.localeCompare(b));
+        setTecnicos(uniqueNames);
+      });
+  }, [briefings]);
 
   useEffect(() => {
     getBriefings(user).then(setBriefings).catch(() => setBriefings([]));
@@ -57,12 +74,23 @@ export function Reports() {
 
         <section className="panel mt-6 p-4">
           <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_180px]">
-            <div className="flex items-center gap-3 rounded-xl bg-stone-50 px-4 py-3 text-sm font-bold text-stone-600">
-              <Filter size={18} /> Filtros do relatório
+            <div className="flex h-full items-end">
+              <div className="flex w-full items-center gap-3 rounded-xl bg-stone-50 px-4 py-3 text-sm font-bold text-stone-600">
+                <Filter size={18} /> Filtros do relatório
+              </div>
             </div>
-            <Select value={status} onChange={setStatus} options={['todos', 'novo', 'em_andamento', 'concluido']} />
-            <Select value={agente} onChange={setAgente} options={['todos', 'Wendel', 'Deive', 'Andiara', 'Débora', 'Lusimere']} />
-            <Select value={servico} onChange={setServico} options={['todos', 'Rotulagem', 'Logotipo', 'Rede Social', 'Outro']} />
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Status</span>
+              <Select value={status} onChange={setStatus} options={['todos', 'novo', 'em_andamento', 'concluido']} />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Técnico</span>
+              <Select value={agente} onChange={setAgente} options={['todos', ...tecnicos]} />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Serviço</span>
+              <Select value={servico} onChange={setServico} options={['todos', 'Rotulagem', 'Logotipo', 'Rede Social', 'Outro']} />
+            </label>
           </div>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button className="btn-primary" onClick={() => exportWithFeedback('csv')} type="button"><Download size={18} /> Exportar CSV</button>
