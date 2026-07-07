@@ -1,4 +1,4 @@
-import { Loader2, Mail, ShieldCheck, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, ShieldCheck, UserPlus } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -69,7 +70,23 @@ export function Login() {
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-stone-700">Senha</span>
-              <input className="input" type="password" value={senha} onChange={(event) => setSenha(event.target.value)} placeholder="Sua senha" />
+              <div className="relative">
+                <input
+                  className="input pr-10"
+                  type={showPassword ? 'text' : 'password'}
+                  value={senha}
+                  onChange={(event) => setSenha(event.target.value)}
+                  placeholder="Sua senha"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 focus:outline-none"
+                  aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </label>
             <button className="btn-primary w-full" disabled={loading} type="submit">
               {loading ? <Loader2 className="animate-spin" size={18} /> : <Mail size={18} />}
