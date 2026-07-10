@@ -20,6 +20,7 @@ create table if not exists briefings (
   descricao text not null,
   status text not null default 'novo' check (status in ('novo', 'em_andamento', 'concluido')),
   situacao text not null default 'ativo',
+  trimestre text,
   created_at timestamptz not null default now(),
   user_id uuid references users(id) on delete set null
 );

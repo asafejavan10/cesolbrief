@@ -153,8 +153,10 @@ export function BriefingForm() {
       setStep(0);
       setDraft({ ...initialDraft, agente: user.nome });
       setFiles([]);
-    } catch {
-      toast.error('Não foi possível enviar o briefing.');
+    } catch (err) {
+      console.error('Erro ao enviar briefing:', err);
+      const msg = err instanceof Error ? err.message : 'Não foi possível enviar o briefing.';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

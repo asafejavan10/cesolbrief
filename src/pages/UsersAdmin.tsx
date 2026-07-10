@@ -102,7 +102,7 @@ export function UsersAdmin() {
       <ConfirmModal
         open={Boolean(removeTarget)}
         title="Remover usuário?"
-        description="O perfil será removido da lista do sistema. No Supabase, a conta de autenticação pode continuar existindo e deve ser excluída em Authentication > Users se você quiser bloquear completamente o login."
+        description="O perfil do usuário e sua conta de autenticação serão excluídos permanentemente do sistema (incluindo o Supabase)."
         onCancel={() => setRemoveTarget(null)}
         onConfirm={confirmRemove}
       />

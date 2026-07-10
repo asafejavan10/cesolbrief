@@ -59,7 +59,7 @@ where email = 'email-do-admin@exemplo.com';
 ```
 
 Admins também podem alterar perfis pela tela `/dashboard/usuarios`.
-Nessa tela também é possível remover o perfil do usuário da tabela `public.users`. Para excluir a conta de autenticação por completo, remova também em Supabase > Authentication > Users.
+Nessa tela também é possível remover o usuário. Ao excluir um usuário no painel administrativo, a sua respectiva conta de autenticação no Supabase (auth.users) também será removida de forma automática por meio do gatilho (trigger) configurado no banco de dados.
 
 ## Recuperação de senha
 

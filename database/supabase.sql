@@ -139,6 +139,24 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_auth_user();
 
+create or replace function public.handle_delete_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from auth.users where id = old.id;
+  return old;
+end;
+$$;
+
+drop trigger if exists on_delete_user on public.users;
+create trigger on_delete_user
+  after delete on public.users
+  for each row execute function public.handle_delete_user();
+
+
 create policy "Users can read own profile" on public.users
   for select using (id = auth.uid() or public.is_admin());
 
@@ -195,6 +213,14 @@ create policy "History follows briefing access" on public.briefing_history
 
 create policy "Admins can write history" on public.briefing_history
   for insert with check (public.is_admin());
+
+create policy "Users can insert history for own briefings" on public.briefing_history
+  for insert with check (
+    exists (
+      select 1 from public.briefings b
+      where b.id = briefing_id and b.user_id = auth.uid()
+    )
+  );
 
 create policy "Authenticated users can read settings" on public.settings
   for select using (auth.role() = 'authenticated');

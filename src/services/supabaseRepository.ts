@@ -12,8 +12,17 @@ export async function signInWithSupabase(email: string, password: string): Promi
   const { data, error } = await api.auth.signInWithPassword({ email, password });
   if (error || !data.user) throw new Error(error?.message || 'Falha ao autenticar no Supabase.');
 
-  const { data: profile, error: profileError } = await api.from('users').select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at').eq('id', data.user.id).single();
+  const { data: profile, error: profileError } = await api
+    .from('users')
+    .select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at')
+    .eq('id', data.user.id)
+    .maybeSingle();
+
   if (profileError) throw new Error(profileError.message);
+  if (!profile) {
+    await api.auth.signOut();
+    throw new Error('Perfil de usuário não encontrado. Se você foi removido recentemente ou se cadastrou sem perfil, fale com o administrador.');
+  }
   if (profile.isBlocked) {
     await api.auth.signOut();
     throw new Error('Sua conta está bloqueada pelo administrador. Entre em contato com a administração.');
@@ -60,8 +69,9 @@ export async function getUserProfile(id: string): Promise<User> {
     .from('users')
     .select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Perfil de usuário não encontrado.');
   return data as User;
 }
 
