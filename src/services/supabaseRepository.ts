@@ -1,4 +1,4 @@
-import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User } from '../types';
+import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User, BriefingComment, BriefingHistory } from '../types';
 import { validateAttachments } from '../utils/fileRules';
 import { supabase, supabaseBucket } from './supabaseClient';
 
@@ -188,6 +188,89 @@ export async function removeSupabaseBriefing(id: string) {
   const { error } = await client().from('briefings').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
+
+export async function updateSupabaseBriefing(
+  id: string,
+  draft: BriefingDraft,
+  newFiles: File[],
+  filesToRemove: string[]
+): Promise<Briefing> {
+  const api = client();
+
+  // 1. Update briefing text fields
+  const { data: briefing, error } = await api
+    .from('briefings')
+    .update({ ...draft })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+
+  // 2. Remove files if needed
+  if (filesToRemove.length > 0) {
+    // Get file info first (so we can delete from storage if needed)
+    const { data: filesToDelete } = await api
+      .from('arquivos')
+      .select('url')
+      .in('id', filesToRemove);
+
+    if (filesToDelete) {
+      for (const file of filesToDelete) {
+        try {
+          const urlParts = file.url.split(`/storage/v1/object/public/${supabaseBucket}/`);
+          if (urlParts.length === 2) {
+            const path = urlParts[1];
+            await api.storage.from(supabaseBucket).remove([path]);
+          }
+        } catch (storageErr) {
+          console.error('Erro ao remover arquivo do storage:', storageErr);
+        }
+      }
+    }
+
+    const { error: deleteError } = await api
+      .from('arquivos')
+      .delete()
+      .in('id', filesToRemove);
+    if (deleteError) throw new Error(deleteError.message);
+  }
+
+  // 3. Upload new files
+  const uploadedFiles = await uploadBriefingFiles(id, newFiles);
+  if (uploadedFiles.length) {
+    const { error: filesError } = await api.from('arquivos').insert(uploadedFiles);
+    if (filesError) throw new Error(filesError.message);
+  }
+
+  // 4. Insert history entry
+  await api.from('briefing_history').insert({ briefing_id: id, texto: 'Briefing editado' });
+
+  // 5. Fetch updated files
+  const { data: allFiles } = await api
+    .from('arquivos')
+    .select('*')
+    .eq('briefing_id', id);
+
+  // 6. Fetch comments and history
+  const { data: comments } = await api
+    .from('briefing_comments')
+    .select('*')
+    .eq('briefing_id', id);
+
+  const { data: history } = await api
+    .from('briefing_history')
+    .select('*')
+    .eq('briefing_id', id)
+    .order('created_at', { ascending: false });
+
+  return {
+    ...(briefing as Briefing),
+    arquivos: (allFiles || []) as BriefingFile[],
+    comentarios: (comments || []) as BriefingComment[],
+    historico: (history || []) as BriefingHistory[],
+  };
+}
+
 
 export async function insertSupabaseComment(id: string, autor: string, texto: string) {
   const api = client();

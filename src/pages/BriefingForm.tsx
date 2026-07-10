@@ -15,16 +15,19 @@ import {
   ChevronDown,
   ChevronUp,
   Paperclip,
-  Download
+  Download,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { FileUpload } from '../components/FileUpload';
 import { Navbar } from '../components/Navbar';
 import { ProgressBar } from '../components/ProgressBar';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
-import { createBriefing, getSettings, getUserProfile, getBriefings } from '../services/dataProvider';
+import { createBriefing, getSettings, getUserProfile, getBriefings, deleteBriefing, updateBriefing } from '../services/dataProvider';
 import { Briefing, BriefingDraft, ServiceName, ServiceType } from '../types';
 import { cn } from '../utils/cn';
 import { formatBytes, formatDate } from '../utils/format';
@@ -56,6 +59,9 @@ export function BriefingForm() {
   const [paused, setPaused] = useState(false);
   const [checkingLimit, setCheckingLimit] = useState(true);
   const [limitError, setLimitError] = useState<string | null>(null);
+  const [editingBriefing, setEditingBriefing] = useState<Briefing | null>(null);
+  const [filesToRemove, setFilesToRemove] = useState<string[]>([]);
+  const [removeId, setRemoveId] = useState<string | null>(null);
   const total = 6;
   const progress = ((step + 1) / total) * 100;
 
@@ -138,14 +144,19 @@ export function BriefingForm() {
 
   async function submit() {
     if (!user) return;
-    if (paused) {
+    if (paused && !editingBriefing) {
       toast.error('O recebimento de briefings está pausado no momento.');
       return;
     }
     setSubmitting(true);
     try {
-      await createBriefing(draft, files, user);
-      toast.success('Briefing enviado com sucesso.');
+      if (editingBriefing) {
+        await updateBriefing(editingBriefing.id, draft, files, filesToRemove);
+        toast.success('Briefing atualizado com sucesso.');
+      } else {
+        await createBriefing(draft, files, user);
+        toast.success('Briefing enviado com sucesso.');
+      }
       // Reload briefings and go to success or home portal
       const updatedList = await getBriefings(user);
       setBriefingsList(updatedList);
@@ -153,13 +164,32 @@ export function BriefingForm() {
       setStep(0);
       setDraft({ ...initialDraft, agente: user.nome });
       setFiles([]);
+      setEditingBriefing(null);
+      setFilesToRemove([]);
     } catch (err) {
-      console.error('Erro ao enviar briefing:', err);
-      const msg = err instanceof Error ? err.message : 'Não foi possível enviar o briefing.';
+      console.error('Erro ao processar briefing:', err);
+      const msg = err instanceof Error ? err.message : 'Não foi possível salvar o briefing.';
       toast.error(msg);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleEditBriefing(briefing: Briefing) {
+    setEditingBriefing(briefing);
+    setFilesToRemove([]);
+    setDraft({
+      agente: briefing.agente,
+      tipo_servico: briefing.tipo_servico,
+      servico: briefing.servico,
+      servico_outro: briefing.servico_outro || '',
+      empreendimento: briefing.empreendimento,
+      cidade: briefing.cidade,
+      descricao: briefing.descricao,
+    });
+    setFiles([]);
+    setStep(0);
+    setViewMode('create');
   }
 
   function handleStartNewBriefing() {
@@ -273,7 +303,14 @@ export function BriefingForm() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setViewMode('portal')}
+                onClick={() => {
+                  setViewMode('portal');
+                  setEditingBriefing(null);
+                  setFilesToRemove([]);
+                  setDraft({ ...initialDraft, agente: user?.nome || '' });
+                  setFiles([]);
+                  setStep(0);
+                }}
                 className="inline-flex items-center gap-2 text-sm font-bold text-stone-500 hover:text-cesol-800"
                 type="button"
               >
@@ -285,7 +322,7 @@ export function BriefingForm() {
               <div className="mb-3 flex items-center justify-between gap-4">
                 <p className="text-sm font-bold text-stone-500">Etapa {step + 1} de {total}</p>
                 <div className="text-xs font-bold text-stone-400">
-                  Novo Briefing
+                  {editingBriefing ? 'Editar Briefing' : 'Novo Briefing'}
                 </div>
               </div>
               <ProgressBar value={progress} />
@@ -320,7 +357,7 @@ export function BriefingForm() {
                     <motion.div key={step} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.24 }}>
                       <h1 className="text-3xl font-black text-stone-950 sm:text-4xl">{title}</h1>
                       <p className="mt-2 text-xs font-bold text-cesol-600">
-                        Destinado ao: {activeQuarter}º Trimestre/051.2024
+                        {editingBriefing ? `Editando: ${editingBriefing.trimestre}` : `Destinado ao: ${activeQuarter}º Trimestre/051.2024`}
                       </p>
                       <div className="mt-8">
                         {step === 0 && <OptionGrid items={['CRIAÇÃO', 'MELHORIA']} value={draft.tipo_servico} onChange={(tipo_servico) => setDraft({ ...draft, tipo_servico: tipo_servico as ServiceType })} />}
@@ -338,7 +375,39 @@ export function BriefingForm() {
                             <p className={cn('mt-2 text-right text-sm font-semibold', draft.descricao.length < 10 ? 'text-red-500' : 'text-emerald-600')}>{draft.descricao.length} caracteres</p>
                           </div>
                         )}
-                        {step === 5 && <FileUpload files={files} onChange={setFiles} />}
+                        {step === 5 && (
+                          <div className="space-y-6">
+                            {editingBriefing && editingBriefing.arquivos.filter(f => !filesToRemove.includes(f.id)).length > 0 && (
+                              <div>
+                                <p className="mb-2 text-sm font-bold text-stone-500">Arquivos atualmente anexados (clique na lixeira para remover):</p>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  {editingBriefing.arquivos
+                                    .filter((file) => !filesToRemove.includes(file.id))
+                                    .map((file) => (
+                                      <div key={file.id} className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs">
+                                        <span className="flex items-center gap-2 min-w-0">
+                                          <Paperclip className="text-cesol-600 shrink-0" size={15} />
+                                          <span className="truncate font-bold text-stone-700">{file.nome}</span>
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setFilesToRemove((prev) => [...prev, file.id])}
+                                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-stone-100 shrink-0 ml-2"
+                                          title="Excluir arquivo"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                            <div>
+                              <p className="mb-2 text-sm font-bold text-stone-500">{editingBriefing ? 'Adicionar novos arquivos:' : 'Anexar arquivos:'}</p>
+                              <FileUpload files={files} onChange={setFiles} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   </AnimatePresence>
@@ -351,9 +420,9 @@ export function BriefingForm() {
                         Próxima <ArrowRight size={18} />
                       </button>
                     ) : (
-                      <button className="btn-primary" disabled={submitting || paused} onClick={submit} type="button">
+                      <button className="btn-primary" disabled={submitting || (paused && !editingBriefing)} onClick={submit} type="button">
                         {submitting ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
-                        Finalizar briefing
+                        {editingBriefing ? 'Salvar alterações' : 'Finalizar briefing'}
                       </button>
                     )}
                   </div>
@@ -496,6 +565,26 @@ export function BriefingForm() {
                               ))}
                             </div>
                           </div>
+
+                          {/* Ações de Edição e Exclusão */}
+                          {briefing.status === 'novo' && (
+                            <div className="flex gap-3 justify-end pt-4 border-t border-stone-200">
+                              <button
+                                type="button"
+                                onClick={() => handleEditBriefing(briefing)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-stone-700 hover:bg-stone-50 hover:text-stone-900 shadow-sm transition-all"
+                              >
+                                <Edit3 size={14} /> Editar Briefing
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRemoveId(briefing.id)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-50 hover:text-red-800 shadow-sm transition-all"
+                              >
+                                <Trash2 size={14} /> Excluir Briefing
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -507,6 +596,29 @@ export function BriefingForm() {
         )}
 
       </main>
+
+      <ConfirmModal
+        open={Boolean(removeId)}
+        title="Excluir briefing?"
+        description="Esta solicitação será removida permanentemente. Essa ação não pode ser desfeita."
+        onCancel={() => setRemoveId(null)}
+        onConfirm={async () => {
+          if (!removeId) return;
+          try {
+            await deleteBriefing(removeId);
+            toast.success('Briefing excluído com sucesso.');
+            if (user) {
+              const updatedList = await getBriefings(user);
+              setBriefingsList(updatedList);
+            }
+          } catch (err) {
+            console.error('Erro ao excluir briefing:', err);
+            toast.error('Erro ao excluir o briefing.');
+          } finally {
+            setRemoveId(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -301,6 +301,52 @@ export function deleteBriefing(id: string) {
   );
 }
 
+export async function updateBriefing(
+  id: string,
+  draft: BriefingDraft,
+  newFiles: File[],
+  filesToRemove: string[]
+): Promise<Briefing> {
+  const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
+  const index = briefings.findIndex((b) => b.id === id);
+  if (index === -1) throw new Error('Briefing não encontrado.');
+
+  const existingBriefing = briefings[index];
+
+  const attachmentError = validateAttachments(newFiles);
+  if (attachmentError) throw new Error(attachmentError);
+
+  // Filter out removed files
+  let updatedFiles = existingBriefing.arquivos.filter((file) => !filesToRemove.includes(file.id));
+
+  // Add new files
+  const newlyUploadedFiles: BriefingFile[] = newFiles.map((file) => ({
+    id: crypto.randomUUID(),
+    briefing_id: id,
+    nome: file.name,
+    url: URL.createObjectURL(file),
+    tipo: file.type || 'application/octet-stream',
+    tamanho: file.size,
+  }));
+  updatedFiles = [...updatedFiles, ...newlyUploadedFiles];
+
+  const updatedBriefing: Briefing = {
+    ...existingBriefing,
+    ...draft,
+    arquivos: updatedFiles,
+    historico: [
+      { id: crypto.randomUUID(), briefing_id: id, texto: 'Briefing editado', created_at: new Date().toISOString() },
+      ...existingBriefing.historico,
+    ],
+  };
+
+  briefings[index] = updatedBriefing;
+  write(BRIEFINGS_KEY, briefings);
+
+  return updatedBriefing;
+}
+
+
 export function addComment(id: string, autor: string, texto: string) {
   const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
   

@@ -67,6 +67,12 @@ export async function deleteBriefing(id: string) {
   return useSupabase ? remote.removeSupabaseBriefing(id) : local.deleteBriefing(id);
 }
 
+export async function updateBriefing(id: string, draft: BriefingDraft, newFiles: File[], filesToRemove: string[]) {
+  return useSupabase
+    ? remote.updateSupabaseBriefing(id, draft, newFiles, filesToRemove)
+    : local.updateBriefing(id, draft, newFiles, filesToRemove);
+}
+
 export async function addComment(id: string, autor: string, texto: string) {
   return useSupabase ? remote.insertSupabaseComment(id, autor, texto) : local.addComment(id, autor, texto);
 }
