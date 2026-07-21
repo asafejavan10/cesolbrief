@@ -22,6 +22,7 @@ export type BriefingFile = {
   url: string;
   tipo: string;
   tamanho: number;
+  is_final?: boolean;
 };
 
 export type BriefingComment = {

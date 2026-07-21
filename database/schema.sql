@@ -32,6 +32,7 @@ create table if not exists arquivos (
   url text not null,
   tipo text not null,
   tamanho bigint not null,
+  is_final boolean not null default false,
   created_at timestamptz not null default now()
 );
 

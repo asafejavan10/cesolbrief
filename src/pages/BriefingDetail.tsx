@@ -1,4 +1,4 @@
-import { ArrowLeft, Download, MessageSquarePlus, Paperclip } from 'lucide-react';
+import { ArrowLeft, Download, MessageSquarePlus, Paperclip, Trash2, Upload, Loader2 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { useCallback, useEffect } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
@@ -6,10 +6,11 @@ import { toast } from 'sonner';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { addComment, getBriefing, updateBriefingStatus } from '../services/dataProvider';
+import { addComment, getBriefing, updateBriefingStatus, uploadFinalFiles, removeFile } from '../services/dataProvider';
 import { Briefing, BriefingStatus } from '../types';
 import { cn } from '../utils/cn';
 import { formatBytes, formatDate } from '../utils/format';
+
 
 export function BriefingDetail() {
   const { id } = useParams();
@@ -17,10 +18,50 @@ export function BriefingDetail() {
   const { user } = useAuth();
   const [briefing, setBriefing] = useState<Briefing | null | undefined>(undefined);
   const [comment, setComment] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const refresh = useCallback(async () => {
     if (id) setBriefing(await getBriefing(id));
   }, [id]);
+
+  async function handleUploadFinalFiles(files: FileList | null) {
+    if (!files || files.length === 0 || !id) return;
+    
+    const allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg'];
+    const validFiles: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (!ext || !allowedExtensions.includes(ext)) {
+        toast.error(`Tipo de arquivo não permitido: ${file.name}. Envie apenas PDF, PNG ou JPG.`);
+        return;
+      }
+      validFiles.push(file);
+    }
+
+    try {
+      setUploading(true);
+      await uploadFinalFiles(id, validFiles);
+      toast.success('Material finalizado enviado com sucesso!');
+      await refresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao enviar os arquivos.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDeleteFile(fileId: string) {
+    if (!id) return;
+    try {
+      await removeFile(id, fileId);
+      toast.success('Arquivo excluído com sucesso.');
+      await refresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao excluir o arquivo.');
+    }
+  }
+
 
   useEffect(() => {
     void refresh();
@@ -119,10 +160,10 @@ export function BriefingDetail() {
           <div className="panel p-6">
             <h2 className="text-xl font-black text-stone-950">Arquivos anexados</h2>
             <div className="mt-5 space-y-3">
-              {briefing.arquivos.length === 0 ? (
+              {briefing.arquivos.filter(f => !f.is_final).length === 0 ? (
                 <p className="rounded-2xl bg-stone-50 p-5 text-sm font-semibold text-stone-500">Nenhum arquivo anexado.</p>
               ) : (
-                briefing.arquivos.map((file) => (
+                briefing.arquivos.filter(f => !f.is_final).map((file) => (
                   <a key={file.id} href={file.url} download={file.nome} className="flex items-center gap-3 rounded-2xl border border-stone-200 p-4 hover:bg-stone-50">
                     <Paperclip className="text-cesol-800" size={20} />
                     <div className="min-w-0 flex-1">
@@ -134,6 +175,69 @@ export function BriefingDetail() {
                 ))
               )}
             </div>
+          </div>
+
+          <div className="panel p-6 border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/10">
+            <h2 className="text-xl font-black text-stone-950 flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+              Material Finalizado
+            </h2>
+            <p className="mt-1 text-xs text-stone-500">Arte final e arquivos finais para download (PDF, PNG, JPG)</p>
+            
+            <div className="mt-5 space-y-3">
+              {briefing.arquivos.filter(f => f.is_final).length === 0 ? (
+                <p className="rounded-2xl bg-stone-50/50 border border-dashed border-stone-200 p-5 text-sm font-semibold text-stone-500 text-center">
+                  Nenhum material finalizado foi enviado ainda.
+                </p>
+              ) : (
+                briefing.arquivos.filter(f => f.is_final).map((file) => (
+                  <div key={file.id} className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm hover:bg-emerald-50/20">
+                    <Paperclip className="text-emerald-600" size={20} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-stone-950">{file.nome}</p>
+                      <p className="text-xs text-stone-500">{formatBytes(file.tamanho)}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <a href={file.url} download={file.nome} className="rounded-xl p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-800" title="Baixar">
+                        <Download size={18} />
+                      </a>
+                      {user?.isAdmin && (
+                        <button type="button" onClick={() => void handleDeleteFile(file.id)} className="rounded-xl p-2 text-red-500 hover:bg-red-50" title="Excluir">
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {user?.isAdmin && (
+              <div className="mt-5 border-t border-stone-100 pt-5">
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-stone-200 rounded-2xl p-5 hover:border-emerald-500 hover:bg-emerald-50/5 cursor-pointer transition-colors duration-200">
+                  {uploading ? (
+                    <div className="flex flex-col items-center gap-2 text-stone-500">
+                      <Loader2 className="animate-spin text-emerald-600" size={24} />
+                      <span className="text-xs font-bold">Enviando arquivos...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-stone-500">
+                      <Upload className="text-stone-400 group-hover:text-emerald-500" size={24} />
+                      <span className="text-xs font-bold text-stone-700">Enviar material finalizado</span>
+                      <span className="text-[10px] text-stone-400">PDF, PNG, JPG (máx. 5MB)</span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    disabled={uploading}
+                    onChange={(e) => void handleUploadFinalFiles(e.target.files)}
+                  />
+                </label>
+              </div>
+            )}
           </div>
         </section>
         <aside className="space-y-6">

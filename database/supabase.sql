@@ -33,6 +33,7 @@ create table if not exists public.arquivos (
   url text not null,
   tipo text not null,
   tamanho bigint not null check (tamanho <= 5242880),
+  is_final boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -189,12 +190,20 @@ create policy "Files visible with briefing access" on public.arquivos
     )
   );
 
-create policy "Users can insert files for own briefing" on public.arquivos
+create policy "Users can insert files for own briefing, admins for all" on public.arquivos
   for insert with check (
-    exists (
+    (exists (
       select 1 from public.briefings b
       where b.id = briefing_id and b.user_id = auth.uid()
-    ) and tamanho <= 5242880
+    ) or public.is_admin()) and tamanho <= 5242880
+  );
+
+create policy "Users can delete files from own briefings, admins from all" on public.arquivos
+  for delete using (
+    exists (
+      select 1 from public.briefings b
+      where b.id = briefing_id and (b.user_id = auth.uid() or public.is_admin())
+    )
   );
 
 create policy "Admins can read comments and history" on public.briefing_comments

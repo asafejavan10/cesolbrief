@@ -413,6 +413,50 @@ export function deleteNotification(id: string) {
   window.dispatchEvent(new CustomEvent('cesolbrief:notifications'));
 }
 
+export async function uploadFinalFiles(briefingId: string, files: File[]): Promise<BriefingFile[]> {
+  ensureSeed();
+  await delay(800);
+  const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
+  const index = briefings.findIndex((b) => b.id === briefingId);
+  if (index === -1) throw new Error('Briefing não encontrado.');
+
+  const newlyUploadedFiles: BriefingFile[] = files.map((file) => ({
+    id: crypto.randomUUID(),
+    briefing_id: briefingId,
+    nome: file.name,
+    url: URL.createObjectURL(file),
+    tipo: file.type || 'application/octet-stream',
+    tamanho: file.size,
+    is_final: true,
+  }));
+
+  briefings[index].arquivos = [...briefings[index].arquivos, ...newlyUploadedFiles];
+  briefings[index].historico = [
+    { id: crypto.randomUUID(), briefing_id: briefingId, texto: 'Material finalizado enviado', created_at: new Date().toISOString() },
+    ...briefings[index].historico,
+  ];
+
+  write(BRIEFINGS_KEY, briefings);
+  return newlyUploadedFiles;
+}
+
+export async function removeFile(briefingId: string, fileId: string): Promise<void> {
+  ensureSeed();
+  await delay(400);
+  const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
+  const index = briefings.findIndex((b) => b.id === briefingId);
+  if (index === -1) return;
+
+  briefings[index].arquivos = briefings[index].arquivos.filter((file) => file.id !== fileId);
+  briefings[index].historico = [
+    { id: crypto.randomUUID(), briefing_id: briefingId, texto: 'Arquivo excluído', created_at: new Date().toISOString() },
+    ...briefings[index].historico,
+  ];
+
+  write(BRIEFINGS_KEY, briefings);
+}
+
+
 function addNotification(input: Omit<Notification, 'id' | 'read' | 'created_at'>) {
   const notification: Notification = {
     ...input,

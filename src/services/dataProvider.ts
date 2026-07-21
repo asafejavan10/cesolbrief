@@ -104,3 +104,12 @@ export async function markNotificationsRead() {
 export async function deleteNotification(id: string) {
   return useSupabase ? remote.deleteSupabaseNotification(id) : local.deleteNotification(id);
 }
+
+export async function uploadFinalFiles(briefingId: string, files: File[]) {
+  return useSupabase ? remote.uploadFinalFiles(briefingId, files) : local.uploadFinalFiles(briefingId, files);
+}
+
+export async function removeFile(briefingId: string, fileId: string) {
+  return useSupabase ? remote.removeFile(briefingId, fileId) : local.removeFile(briefingId, fileId);
+}
+

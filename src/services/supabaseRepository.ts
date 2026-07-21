@@ -356,7 +356,7 @@ export async function deleteSupabaseNotification(id: string) {
   if (error) throw new Error(error.message);
 }
 
-async function uploadBriefingFiles(briefingId: string, files: File[]): Promise<BriefingFile[]> {
+async function uploadBriefingFiles(briefingId: string, files: File[], isFinal: boolean = false): Promise<BriefingFile[]> {
   const api = client();
   const uploaded: BriefingFile[] = [];
 
@@ -377,8 +377,47 @@ async function uploadBriefingFiles(briefingId: string, files: File[]): Promise<B
       url: publicUrl.publicUrl,
       tipo: file.type || 'application/octet-stream',
       tamanho: file.size,
+      is_final: isFinal,
     });
   }
 
   return uploaded;
 }
+
+export async function uploadFinalFiles(briefingId: string, files: File[]): Promise<BriefingFile[]> {
+  const api = client();
+  const uploadedFiles = await uploadBriefingFiles(briefingId, files, true);
+  if (uploadedFiles.length) {
+    const { error: filesError } = await api.from('arquivos').insert(uploadedFiles);
+    if (filesError) throw new Error(filesError.message);
+  }
+  await api.from('briefing_history').insert({ briefing_id: briefingId, texto: 'Material finalizado enviado' });
+  return uploadedFiles;
+}
+
+export async function removeFile(briefingId: string, fileId: string): Promise<void> {
+  const api = client();
+  // Get file info first (so we can delete from storage if needed)
+  const { data: file } = await api
+    .from('arquivos')
+    .select('url')
+    .eq('id', fileId)
+    .maybeSingle();
+
+  if (file) {
+    try {
+      const urlParts = file.url.split(`/storage/v1/object/public/${supabaseBucket}/`);
+      if (urlParts.length === 2) {
+        const path = urlParts[1];
+        await api.storage.from(supabaseBucket).remove([path]);
+      }
+    } catch (storageErr) {
+      console.error('Erro ao remover arquivo do storage:', storageErr);
+    }
+  }
+
+  const { error } = await api.from('arquivos').delete().eq('id', fileId);
+  if (error) throw new Error(error.message);
+  await api.from('briefing_history').insert({ briefing_id: briefingId, texto: 'Arquivo excluído' });
+}
+
