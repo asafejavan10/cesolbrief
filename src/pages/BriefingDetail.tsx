@@ -36,6 +36,10 @@ export function BriefingDetail() {
         toast.error(`Tipo de arquivo não permitido: ${file.name}. Envie apenas PDF, PNG ou JPG.`);
         return;
       }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`O arquivo "${file.name}" ultrapassa o limite de 5 MB.`);
+        return;
+      }
       validFiles.push(file);
     }
 

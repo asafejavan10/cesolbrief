@@ -158,8 +158,8 @@ create trigger on_delete_user
   for each row execute function public.handle_delete_user();
 
 
-create policy "Users can read own profile" on public.users
-  for select using (id = auth.uid() or public.is_admin());
+create policy "Authenticated users can read profiles" on public.users
+  for select using (auth.role() = 'authenticated');
 
 create policy "Users can insert own profile" on public.users
   for insert with check (id = auth.uid());
