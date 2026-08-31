@@ -613,7 +613,8 @@ export function BriefingForm() {
             }
           } catch (err) {
             console.error('Erro ao excluir briefing:', err);
-            toast.error('Erro ao excluir o briefing.');
+            const msg = err instanceof Error ? err.message : 'Erro ao excluir o briefing.';
+            toast.error(msg);
           } finally {
             setRemoveId(null);
           }

@@ -176,11 +176,12 @@ create policy "Users can read own briefings, admins read all" on public.briefing
 create policy "Users can create own briefings" on public.briefings
   for insert with check (user_id = auth.uid());
 
-create policy "Admins can update briefings" on public.briefings
-  for update using (public.is_admin()) with check (public.is_admin());
+create policy "Users can update own briefings, admins update all" on public.briefings
+  for update using (user_id = auth.uid() or public.is_admin())
+  with check (user_id = auth.uid() or public.is_admin());
 
-create policy "Admins can delete briefings" on public.briefings
-  for delete using (public.is_admin());
+create policy "Users can delete own briefings, admins delete all" on public.briefings
+  for delete using (user_id = auth.uid() or public.is_admin());
 
 create policy "Files visible with briefing access" on public.arquivos
   for select using (
@@ -206,8 +207,13 @@ create policy "Users can delete files from own briefings, admins from all" on pu
     )
   );
 
-create policy "Admins can read comments and history" on public.briefing_comments
-  for select using (public.is_admin());
+create policy "Comments visible with briefing access" on public.briefing_comments
+  for select using (
+    exists (
+      select 1 from public.briefings b
+      where b.id = briefing_id and (b.user_id = auth.uid() or public.is_admin())
+    )
+  );
 
 create policy "Admins can write comments" on public.briefing_comments
   for insert with check (public.is_admin());
@@ -259,4 +265,13 @@ create policy "Authenticated users can read briefing attachments" on storage.obj
   for select using (
     bucket_id = 'briefing-attachments'
     and auth.role() = 'authenticated'
+  );
+
+create policy "Authenticated users can delete briefing attachments" on storage.objects
+  for delete using (
+    bucket_id = 'briefing-attachments'
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] in (
+      select id::text from public.briefings where user_id = auth.uid() or public.is_admin()
+    )
   );

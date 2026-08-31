@@ -234,10 +234,19 @@ export function Dashboard() {
         title="Excluir briefing?"
         description="Essa solicitação será removida da listagem local. Em produção, a exclusão passa pelo endpoint serverless."
         onCancel={() => setRemoveId(null)}
-        onConfirm={() => {
-          if (removeId) void deleteBriefing(removeId).then(refresh);
-          setRemoveId(null);
-          toast.success('Briefing excluído.');
+        onConfirm={async () => {
+          if (!removeId) return;
+          try {
+            await deleteBriefing(removeId);
+            toast.success('Briefing excluído com sucesso.');
+            await refresh();
+          } catch (err) {
+            console.error('Erro ao excluir briefing:', err);
+            const msg = err instanceof Error ? err.message : 'Erro ao excluir o briefing.';
+            toast.error(msg);
+          } finally {
+            setRemoveId(null);
+          }
         }}
       />
       {openQuarterModal && (
