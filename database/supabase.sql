@@ -168,6 +168,10 @@ create policy "Users can insert own profile" on public.users
 create policy "Admins can update user roles" on public.users
   for update using (public.is_admin()) with check (public.is_admin());
 
+create policy "Users can update own profile" on public.users
+  for update using (id = auth.uid() or public.is_admin())
+  with check (id = auth.uid() or public.is_admin());
+
 create policy "Admins can delete user profiles" on public.users
   for delete using (public.is_admin());
 
@@ -275,4 +279,25 @@ create policy "Authenticated users can delete briefing attachments" on storage.o
     and (storage.foldername(name))[1] in (
       select id::text from public.briefings where user_id = auth.uid() or public.is_admin()
     )
+  );
+
+create policy "Authenticated users can upload avatars" on storage.objects
+  for insert with check (
+    bucket_id = 'briefing-attachments'
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = 'avatars'
+  );
+
+create policy "Authenticated users can update avatars" on storage.objects
+  for update using (
+    bucket_id = 'briefing-attachments'
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = 'avatars'
+  );
+
+create policy "Authenticated users can delete avatars" on storage.objects
+  for delete using (
+    bucket_id = 'briefing-attachments'
+    and auth.role() = 'authenticated'
+    and (storage.foldername(name))[1] = 'avatars'
   );
