@@ -7,6 +7,7 @@ export type User = {
   isAdmin: boolean;
   isBlocked?: boolean;
   limitBriefings?: number | null;
+  avatar_url?: string | null;
   created_at: string;
 };
 

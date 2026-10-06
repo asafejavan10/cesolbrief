@@ -1,7 +1,8 @@
-import { ArrowRight, LayoutDashboard, LogOut, Menu } from 'lucide-react';
+import { ArrowRight, LayoutDashboard, LogOut, Menu, User } from 'lucide-react';
 import { Link, NavLink } from 'react-router-dom';
 import { useState } from 'react';
 import { Logo } from './Logo';
+import { UserAvatar } from './UserAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../utils/cn';
 
@@ -10,14 +11,18 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
 
   const homePath = user ? (user.isAdmin ? '/dashboard' : '/briefing') : '/login';
-  const items = user?.isAdmin
-    ? [
-        { to: '/dashboard', label: 'Painel' },
-        { to: '/briefing', label: 'Novo briefing' },
-      ]
-    : [
-        { to: '/briefing', label: 'Novo briefing' },
-      ];
+  const items = user
+    ? user.isAdmin
+      ? [
+          { to: '/dashboard', label: 'Painel' },
+          { to: '/briefing', label: 'Novo briefing' },
+          { to: '/perfil', label: 'Meu Perfil' },
+        ]
+      : [
+          { to: '/briefing', label: 'Novo briefing' },
+          { to: '/perfil', label: 'Meu Perfil' },
+        ]
+    : [];
 
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200/80 bg-white/85 backdrop-blur-xl">
@@ -46,6 +51,20 @@ export function Navbar() {
                   <LayoutDashboard size={16} /> Dashboard
                 </Link>
               )}
+              <Link
+                to="/perfil"
+                className="flex items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 hover:border-stone-300 hover:bg-stone-50 transition"
+                title="Meu Perfil"
+              >
+                <UserAvatar
+                  src={user.avatar_url}
+                  name={user.nome}
+                  size="xs"
+                  showBorder={true}
+                  className="border border-stone-800"
+                />
+                <span className="max-w-[120px] truncate">{user.nome}</span>
+              </Link>
               <button onClick={logout} className="btn-secondary py-2" type="button">
                 <LogOut size={16} /> Sair
               </button>
@@ -76,14 +95,43 @@ export function Navbar() {
                 {item.label}
               </Link>
             ))}
-            {!user && (
-              <Link to="/cadastro" onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-100">
-                Criar conta
-              </Link>
+            {user ? (
+              <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
+                <Link
+                  to="/perfil"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2.5 text-sm font-bold text-stone-800"
+                >
+                  <UserAvatar
+                    src={user.avatar_url}
+                    name={user.nome}
+                    size="sm"
+                    showBorder={true}
+                    className="border border-stone-800"
+                  />
+                  <span>{user.nome}</span>
+                </Link>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    logout();
+                  }}
+                  className="btn-secondary text-xs py-1.5 px-3"
+                  type="button"
+                >
+                  <LogOut size={14} /> Sair
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link to="/cadastro" onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-100">
+                  Criar conta
+                </Link>
+                <Link to="/login" onClick={() => setOpen(false)} className="btn-primary mt-2">
+                  Entrar
+                </Link>
+              </>
             )}
-            <Link to={user ? (user.isAdmin ? '/dashboard' : '/briefing') : '/login'} onClick={() => setOpen(false)} className="btn-primary mt-2">
-              {user ? (user.isAdmin ? 'Dashboard' : 'Novo briefing') : 'Entrar'}
-            </Link>
           </div>
         </div>
       )}

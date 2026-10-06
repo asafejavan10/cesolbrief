@@ -15,6 +15,7 @@ const defaultUsers: Array<User & { senha: string }> = [
     isAdmin: true,
     isBlocked: false,
     limitBriefings: null,
+    avatar_url: null,
     created_at: new Date().toISOString(),
   },
   {
@@ -25,6 +26,29 @@ const defaultUsers: Array<User & { senha: string }> = [
     isAdmin: false,
     isBlocked: false,
     limitBriefings: null,
+    avatar_url: null,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'user-2',
+    nome: 'Wendel',
+    email: 'wendel@cesol.br',
+    senha: 'cesol123',
+    isAdmin: false,
+    isBlocked: false,
+    limitBriefings: null,
+    avatar_url: null,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'user-3',
+    nome: 'Andiara',
+    email: 'andiara@cesol.br',
+    senha: 'cesol123',
+    isAdmin: false,
+    isBlocked: false,
+    limitBriefings: null,
+    avatar_url: null,
     created_at: new Date().toISOString(),
   },
 ];
@@ -91,6 +115,7 @@ export function getUsers() {
     isAdmin: user.isAdmin,
     isBlocked: user.isBlocked || false,
     limitBriefings: user.limitBriefings !== undefined ? user.limitBriefings : null,
+    avatar_url: user.avatar_url || null,
     created_at: user.created_at,
   }));
 }
@@ -109,13 +134,14 @@ export async function login(email: string, senha: string): Promise<User> {
     isAdmin: found.isAdmin,
     isBlocked: found.isBlocked || false,
     limitBriefings: found.limitBriefings !== undefined ? found.limitBriefings : null,
+    avatar_url: found.avatar_url || null,
     created_at: found.created_at,
   };
 }
 
 export async function registerUser(nome: string, email: string, senha: string): Promise<void> {
   ensureSeed();
-  await delay(650);
+  await delay(500);
   const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
   if (users.some((user) => user.email.toLowerCase() === email.toLowerCase())) {
     throw new Error('Este e-mail já está cadastrado.');
@@ -128,6 +154,7 @@ export async function registerUser(nome: string, email: string, senha: string): 
     isAdmin: email.toLowerCase() === 'ajavan.design@gmail.com',
     isBlocked: false,
     limitBriefings: null,
+    avatar_url: null,
     created_at: new Date().toISOString(),
   });
   write(USERS_KEY, users);
@@ -164,6 +191,7 @@ export async function getUserProfile(id: string): Promise<User> {
     isAdmin: found.isAdmin,
     isBlocked: found.isBlocked || false,
     limitBriefings: found.limitBriefings !== undefined ? found.limitBriefings : null,
+    avatar_url: found.avatar_url || null,
     created_at: found.created_at,
   };
 }
@@ -175,6 +203,31 @@ export async function updateUserProfile(id: string, updates: Partial<User>): Pro
     USERS_KEY,
     users.map((user) => (user.id === id ? { ...user, ...updates } : user)),
   );
+}
+
+export async function uploadUserAvatar(userId: string, file: File): Promise<string> {
+  ensureSeed();
+  if (file.size > 2 * 1024 * 1024) {
+    throw new Error('A foto de perfil deve ter no máximo 2MB.');
+  }
+  const mime = file.type.toLowerCase();
+  if (mime !== 'image/jpeg' && mime !== 'image/png' && mime !== 'image/jpg') {
+    throw new Error('Apenas imagens nos formatos JPG ou PNG são permitidas.');
+  }
+
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Erro ao ler a imagem selecionada.'));
+    reader.readAsDataURL(file);
+  });
+
+  await updateUserProfile(userId, { avatar_url: dataUrl });
+  return dataUrl;
+}
+
+export async function removeUserAvatar(userId: string): Promise<void> {
+  await updateUserProfile(userId, { avatar_url: null });
 }
 
 export async function updateUserRole(id: string, isAdmin: boolean): Promise<void> {

@@ -1,17 +1,19 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ReactNode, useState } from 'react';
-import { BarChart3, History, Home, LogOut, Menu, X, UserCog, Users } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { BarChart3, History, Home, LogOut, Menu, X, UserCog, Users, User } from 'lucide-react';
+import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../utils/cn';
 import { Logo } from '../components/Logo';
 import { NotificationsButton } from '../components/NotificationsButton';
 import { Sidebar } from '../components/Sidebar';
+import { UserAvatar } from '../components/UserAvatar';
 
 const menuItems = [
   { to: '/dashboard', label: 'Home', icon: Home, adminOnly: false },
   { to: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
   { to: '/dashboard/usuarios', label: 'Usuários', icon: UserCog, adminOnly: true },
+  { to: '/dashboard/perfil', label: 'Meu Perfil', icon: User, adminOnly: false },
   { to: '/briefing', label: 'Novo briefing', icon: Users, adminOnly: false },
   { to: '/dashboard/historico', label: 'Histórico de Trimestres', icon: History, adminOnly: true },
 ];
@@ -26,14 +28,21 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Mobile Sticky Header */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-stone-200/80 bg-white/80 px-4 py-4 backdrop-blur-md lg:hidden">
         <Logo />
-        <button
-          onClick={() => setMenuOpen(true)}
-          className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
-          type="button"
-          aria-label="Abrir menu"
-        >
-          <Menu size={22} />
-        </button>
+        <div className="flex items-center gap-2">
+          {user && (
+            <Link to="/dashboard/perfil" className="rounded-full ring-1 ring-stone-800">
+              <UserAvatar src={user.avatar_url} name={user.nome} size="xs" showBorder={false} />
+            </Link>
+          )}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
+            type="button"
+            aria-label="Abrir menu"
+          >
+            <Menu size={22} />
+          </button>
+        </div>
       </header>
 
       {/* Mobile Drawer Menu */}
@@ -92,19 +101,32 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               </nav>
 
               <div className="mt-4 flex items-center justify-between rounded-2xl border border-stone-200 p-3">
-                <div>
-                  <p className="text-sm font-bold text-stone-900">{user?.nome}</p>
-                  <p className="text-xs text-stone-500">
-                    {user?.isAdmin ? 'Administrador' : 'Usuário comum'}
-                  </p>
-                </div>
+                <Link
+                  to="/dashboard/perfil"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 min-w-0 hover:opacity-80 transition"
+                >
+                  <UserAvatar
+                    src={user?.avatar_url}
+                    name={user?.nome || ''}
+                    size="sm"
+                    showBorder={true}
+                    className="border border-stone-800"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-stone-900 truncate">{user?.nome}</p>
+                    <p className="text-xs text-stone-500 truncate">
+                      {user?.isAdmin ? 'Administrador' : 'Técnico'}
+                    </p>
+                  </div>
+                </Link>
                 <button
                   aria-label="Sair"
                   onClick={() => {
                     setMenuOpen(false);
                     logout();
                   }}
-                  className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
+                  className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 shrink-0"
                   type="button"
                 >
                   <LogOut size={18} />
@@ -136,6 +158,23 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 Sistema Online
               </span>
             </div>
+            <div className="h-4 w-px bg-stone-200" />
+            <Link
+              to="/dashboard/perfil"
+              className="flex items-center gap-2 rounded-full p-0.5 hover:ring-2 hover:ring-cesol-600/30 transition"
+              title="Meu Perfil"
+            >
+              <UserAvatar
+                src={user?.avatar_url}
+                name={user?.nome || ''}
+                size="xs"
+                showBorder={true}
+                className="border border-stone-800"
+              />
+              <span className="text-xs font-bold text-stone-700 max-w-[120px] truncate">
+                {user?.nome?.split(' ')[0]}
+              </span>
+            </Link>
           </div>
         </div>
 

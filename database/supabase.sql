@@ -7,6 +7,7 @@ create table if not exists public.users (
   "isAdmin" boolean not null default false,
   "isBlocked" boolean not null default false,
   "limitBriefings" integer default null,
+  avatar_url text default null,
   created_at timestamptz not null default now()
 );
 

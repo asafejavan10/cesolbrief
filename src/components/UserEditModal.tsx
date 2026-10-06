@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, ChangeEvent } from 'react';
 import { toast } from 'sonner';
-import { Shield, ShieldAlert, Ban, X, Info } from 'lucide-react';
+import { Shield, ShieldAlert, Ban, X, Info, Camera, Trash2, Upload, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { updateUserProfile } from '../services/dataProvider';
+import { updateUserProfile, uploadUserAvatar, removeUserAvatar } from '../services/dataProvider';
 import { User } from '../types';
+import { UserAvatar } from './UserAvatar';
 
 interface UserEditModalProps {
   open: boolean;
@@ -13,12 +14,18 @@ interface UserEditModalProps {
 }
 
 export function UserEditModal({ open, targetUser, onClose, onSave }: UserEditModalProps) {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateUser } = useAuth();
   const [isAdmin, setIsAdmin] = useState(targetUser.isAdmin);
   const [isBlocked, setIsBlocked] = useState(targetUser.isBlocked || false);
   const [hasLimit, setHasLimit] = useState(targetUser.limitBriefings !== null && targetUser.limitBriefings !== undefined);
   const [limitValue, setLimitValue] = useState<number>(targetUser.limitBriefings || 5);
   const [submitting, setSubmitting] = useState(false);
+
+  // Photo state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(targetUser.avatar_url || null);
+  const [removeAvatarRequested, setRemoveAvatarRequested] = useState(false);
 
   // Sync state when targetUser changes
   useEffect(() => {
@@ -27,17 +34,62 @@ export function UserEditModal({ open, targetUser, onClose, onSave }: UserEditMod
     const hasLimitVal = targetUser.limitBriefings !== null && targetUser.limitBriefings !== undefined;
     setHasLimit(hasLimitVal);
     setLimitValue(targetUser.limitBriefings || 5);
+    setPreviewUrl(targetUser.avatar_url || null);
+    setSelectedFile(null);
+    setRemoveAvatarRequested(false);
   }, [targetUser]);
 
   if (!open) return null;
 
   const isSelf = currentUser?.id === targetUser.id;
 
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check size: max 2MB
+    const MAX_SIZE = 2 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error('A foto selecionada ultrapassa o limite de 2MB. Escolha uma imagem menor.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // Check type: jpg, jpeg, png
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      toast.error('Formato inválido. Apenas imagens JPG ou PNG são permitidas.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+    setRemoveAvatarRequested(false);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+  };
+
+  const handleRemovePhoto = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setRemoveAvatarRequested(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
 
     try {
+      let newAvatarUrl: string | null | undefined = undefined;
+
+      if (removeAvatarRequested) {
+        await removeUserAvatar(targetUser.id);
+        newAvatarUrl = null;
+      } else if (selectedFile) {
+        newAvatarUrl = await uploadUserAvatar(targetUser.id, selectedFile);
+      }
+
       const updates = {
         isAdmin,
         isBlocked,
@@ -45,11 +97,19 @@ export function UserEditModal({ open, targetUser, onClose, onSave }: UserEditMod
       };
 
       await updateUserProfile(targetUser.id, updates);
-      toast.success('Permissões do usuário atualizadas com sucesso!');
+
+      if (isSelf) {
+        updateUser({
+          isAdmin,
+          ...(newAvatarUrl !== undefined ? { avatar_url: newAvatarUrl } : {}),
+        });
+      }
+
+      toast.success('Configurações do usuário atualizadas com sucesso!');
       onSave();
       onClose();
     } catch (error) {
-      toast.error('Erro ao atualizar permissões do usuário.');
+      toast.error('Erro ao atualizar configurações do usuário.');
       console.error(error);
     } finally {
       setSubmitting(false);
@@ -57,11 +117,11 @@ export function UserEditModal({ open, targetUser, onClose, onSave }: UserEditMod
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-stone-950/35 px-4 backdrop-blur-sm">
-      <div className="panel w-full max-w-lg p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-stone-950/40 px-4 backdrop-blur-sm">
+      <div className="panel w-full max-w-lg p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-stone-100 pb-4">
           <div>
-            <h2 className="text-xl font-black text-stone-950">Editar Permissões</h2>
+            <h2 className="text-xl font-black text-stone-950">Configurar Usuário</h2>
             <p className="mt-1 text-xs font-semibold text-stone-500">{targetUser.nome} • {targetUser.email}</p>
           </div>
           <button
@@ -74,6 +134,56 @@ export function UserEditModal({ open, targetUser, onClose, onSave }: UserEditMod
         </div>
 
         <form onSubmit={handleSave} className="mt-6 space-y-6">
+          {/* PHOTO SECTION */}
+          <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-4">
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-3">
+              Foto de Perfil do Usuário
+            </label>
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0">
+                <UserAvatar
+                  src={previewUrl}
+                  name={targetUser.nome}
+                  size="xl"
+                  showBorder={true}
+                  className="h-16 w-16 border-2 border-stone-800 shadow-sm"
+                />
+              </div>
+
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <p className="text-xs text-stone-600">
+                  Esta foto é exibida no filtro de técnicos do dashboard.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5"
+                  >
+                    <Upload size={13} /> {previewUrl ? 'Alterar foto' : 'Enviar foto'}
+                  </button>
+                  {previewUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="btn-secondary text-xs py-1.5 px-2.5 text-red-600 hover:text-red-700 hover:border-red-200 inline-flex items-center gap-1.5"
+                    >
+                      <Trash2 size={13} /> Remover
+                    </button>
+                  )}
+                </div>
+                <span className="block text-[10px] text-stone-400">JPG ou PNG até 2MB</span>
+              </div>
+            </div>
+          </div>
+
           {/* Admin Role Section */}
           <div className="space-y-3">
             <div className="flex items-start justify-between">
@@ -185,10 +295,16 @@ export function UserEditModal({ open, targetUser, onClose, onSave }: UserEditMod
             </button>
             <button
               disabled={submitting}
-              className="btn-primary"
+              className="btn-primary inline-flex items-center gap-2"
               type="submit"
             >
-              {submitting ? 'Salvando...' : 'Salvar Alterações'}
+              {submitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" /> Salvando...
+                </>
+              ) : (
+                'Salvar Alterações'
+              )}
             </button>
           </div>
         </form>

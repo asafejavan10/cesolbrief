@@ -1,6 +1,7 @@
-import { BarChart3, History, Home, LogOut, PauseCircle, UserCog, Users } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { BarChart3, History, Home, LogOut, PauseCircle, UserCog, Users, User } from 'lucide-react';
+import { NavLink, Link } from 'react-router-dom';
 import { Logo } from './Logo';
+import { UserAvatar } from './UserAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../utils/cn';
 
@@ -8,6 +9,7 @@ const items = [
   { to: '/dashboard', label: 'Home', icon: Home, adminOnly: false },
   { to: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
   { to: '/dashboard/usuarios', label: 'Usuários', icon: UserCog, adminOnly: true },
+  { to: '/dashboard/perfil', label: 'Meu Perfil', icon: User, adminOnly: false },
   { to: '/briefing', label: 'Novo briefing', icon: Users, adminOnly: false },
   { to: '/dashboard/historico', label: 'Histórico de Trimestres', icon: History, adminOnly: true },
 ];
@@ -44,11 +46,25 @@ export function Sidebar() {
         <p className="text-xs leading-5 text-cesol-800">Pausar ou reativar recebimentos está disponível no dashboard.</p>
       </div>
       <div className="mt-4 flex items-center justify-between rounded-2xl border border-stone-200 p-3">
-        <div>
-          <p className="text-sm font-bold text-stone-900">{user?.nome}</p>
-          <p className="text-xs text-stone-500">{user?.isAdmin ? 'Administrador' : 'Usuário comum'}</p>
-        </div>
-        <button aria-label="Sair" onClick={logout} className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-900" type="button">
+        <Link to="/dashboard/perfil" className="flex items-center gap-3 min-w-0 hover:opacity-80 transition">
+          <UserAvatar
+            src={user?.avatar_url}
+            name={user?.nome || ''}
+            size="sm"
+            showBorder={true}
+            className="border border-stone-800"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-stone-950 truncate">{user?.nome}</p>
+            <p className="text-xs text-stone-500 truncate">{user?.isAdmin ? 'Administrador' : 'Técnico'}</p>
+          </div>
+        </Link>
+        <button
+          aria-label="Sair"
+          onClick={logout}
+          className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 shrink-0"
+          type="button"
+        >
           <LogOut size={18} />
         </button>
       </div>

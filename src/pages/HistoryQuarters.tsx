@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { DashboardFilters, TechnicianItem } from '../components/DashboardFilters';
 import { EmptyState } from '../components/EmptyState';
 import { MetricCard } from '../components/MetricCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -56,21 +57,33 @@ export function HistoryQuarters() {
   const [servico, setServico] = useState('todos');
 
   const [removeId, setRemoveId] = useState<string | null>(null);
-  const [tecnicos, setTecnicos] = useState<string[]>([]);
+  const [tecnicos, setTecnicos] = useState<TechnicianItem[]>([]);
 
   useEffect(() => {
     getUsers()
       .then((usersList) => {
+        const userAvatarMap = new Map<string, string | null>();
+        usersList.forEach((u) => {
+          userAvatarMap.set(u.nome.toLowerCase(), u.avatar_url || null);
+        });
+
         const registeredTecnicos = usersList.filter((u) => !u.isAdmin).map((u) => u.nome);
         const briefingAgentes = briefings.map((b) => b.agente).filter(Boolean);
-        const allNames = [...registeredTecnicos, ...briefingAgentes];
-        const uniqueNames = Array.from(new Set(allNames)).sort((a, b) => a.localeCompare(b));
-        setTecnicos(uniqueNames);
+        const allNames = Array.from(new Set([...registeredTecnicos, ...briefingAgentes])).sort((a, b) =>
+          a.localeCompare(b)
+        );
+
+        const items: TechnicianItem[] = allNames.map((nome) => ({
+          nome,
+          avatar_url: userAvatarMap.get(nome.toLowerCase()) || null,
+        }));
+
+        setTecnicos(items);
       })
       .catch(() => {
         const briefingAgentes = briefings.map((b) => b.agente).filter(Boolean);
         const uniqueNames = Array.from(new Set(briefingAgentes)).sort((a, b) => a.localeCompare(b));
-        setTecnicos(uniqueNames);
+        setTecnicos(uniqueNames.map((nome) => ({ nome, avatar_url: null })));
       });
   }, [briefings]);
 
@@ -331,51 +344,18 @@ export function HistoryQuarters() {
           />
         </div>
 
-        {/* Filter bar */}
-        <div className="panel p-4">
-          <div className="grid gap-3 lg:grid-cols-[1fr_160px_160px_160px]">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">
-                Pesquisar no Histórico
-              </span>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-3.5 text-stone-400" size={18} />
-                <input
-                  className="input pl-10"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Pesquisar por empreendimento, cidade ou técnico..."
-                />
-              </div>
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">
-                Status
-              </span>
-              <Select
-                value={status}
-                onChange={setStatus}
-                options={['todos', 'novo', 'em_andamento', 'concluido']}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">
-                Técnico
-              </span>
-              <Select value={agente} onChange={setAgente} options={['todos', ...tecnicos]} />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">
-                Serviço
-              </span>
-              <Select
-                value={servico}
-                onChange={setServico}
-                options={['todos', 'Rotulagem', 'Logotipo', 'Rede Social', 'Outro']}
-              />
-            </label>
-          </div>
-        </div>
+        {/* Filter toolbar */}
+        <DashboardFilters
+          query={query}
+          onQueryChange={setQuery}
+          tecnicos={tecnicos}
+          selectedTecnico={agente}
+          onTecnicoChange={setAgente}
+          servico={servico}
+          onServicoChange={setServico}
+          status={status}
+          onStatusChange={setStatus}
+        />
 
         {/* Table or Empty State */}
         <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-card">

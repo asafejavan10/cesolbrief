@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { dataProviderName, login as loginService, logout as logoutService } from '../services/dataProvider';
+import { dataProviderName, getUserProfile, login as loginService, logout as logoutService } from '../services/dataProvider';
 import { User } from '../types';
 
 type AuthContextValue = {
@@ -8,6 +8,8 @@ type AuthContextValue = {
   loading: boolean;
   login: (email: string, senha: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updatedUser: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -23,6 +25,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session) setUser(JSON.parse(session) as User);
     setLoading(false);
   }, []);
+
+  const updateUser = (updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, ...updates };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const refreshUser = async () => {
+    if (!user) return;
+    try {
+      const refreshed = await getUserProfile(user.id);
+      setUser(refreshed);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(refreshed));
+    } catch (err) {
+      console.error('Erro ao atualizar dados do usuário:', err);
+    }
+  };
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -40,6 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(SESSION_KEY);
         toast.success('Sessão encerrada.');
       },
+      updateUser,
+      refreshUser,
     }),
     [loading, user],
   );

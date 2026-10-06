@@ -6,6 +6,7 @@ import { Dashboard } from '../pages/Dashboard';
 import { ForgotPassword } from '../pages/ForgotPassword';
 import { HistoryQuarters } from '../pages/HistoryQuarters';
 import { Login } from '../pages/Login';
+import { Profile } from '../pages/Profile';
 import { Reports } from '../pages/Reports';
 import { ResetPassword } from '../pages/ResetPassword';
 import { Signup } from '../pages/Signup';
@@ -33,12 +34,14 @@ export function AppRoutes() {
         <Route path="/redefinir-senha" element={<Page><ResetPassword /></Page>} />
         <Route element={<ProtectedRoute />}>
           <Route path="/briefing" element={<Page><BriefingForm /></Page>} />
+          <Route path="/perfil" element={<Page><Profile /></Page>} />
           <Route path="/sucesso" element={<Page><Success /></Page>} />
         </Route>
         <Route element={<ProtectedRoute adminOnly />}>
           <Route path="/dashboard" element={<Page><Dashboard /></Page>} />
           <Route path="/dashboard/relatorios" element={<Page><Reports /></Page>} />
           <Route path="/dashboard/usuarios" element={<Page><UsersAdmin /></Page>} />
+          <Route path="/dashboard/perfil" element={<Page><Profile /></Page>} />
           <Route path="/dashboard/historico" element={<Page><HistoryQuarters /></Page>} />
           <Route path="/dashboard/briefings/:id" element={<Page><BriefingDetail /></Page>} />
         </Route>

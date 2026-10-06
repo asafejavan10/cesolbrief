@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { MetricCard } from '../components/MetricCard';
+import { UserAvatar } from '../components/UserAvatar';
 import { UserEditModal } from '../components/UserEditModal';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardLayout } from '../layouts/DashboardLayout';
@@ -66,7 +67,18 @@ export function UsersAdmin() {
               <tbody className="divide-y divide-stone-100">
                 {users.map((item) => (
                   <tr key={item.id}>
-                    <td className="px-5 py-4 text-sm font-bold text-stone-950">{item.nome}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <UserAvatar
+                          src={item.avatar_url}
+                          name={item.nome}
+                          size="sm"
+                          showBorder={true}
+                          className="border border-stone-800"
+                        />
+                        <span className="text-sm font-bold text-stone-950">{item.nome}</span>
+                      </div>
+                    </td>
                     <td className="px-5 py-4 text-sm text-stone-600">{item.email}</td>
                     <td className="px-5 py-4">
                       <span className={item.isAdmin ? 'rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200 whitespace-nowrap' : 'rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700 ring-1 ring-stone-200 whitespace-nowrap'}>

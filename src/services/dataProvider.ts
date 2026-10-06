@@ -30,8 +30,19 @@ export async function getUserProfile(id: string) {
   return useSupabase ? remote.getUserProfile(id) : local.getUserProfile(id);
 }
 
-export async function updateUserProfile(id: string, updates: { isAdmin?: boolean; isBlocked?: boolean; limitBriefings?: number | null }) {
+export async function updateUserProfile(
+  id: string,
+  updates: { isAdmin?: boolean; isBlocked?: boolean; limitBriefings?: number | null; avatar_url?: string | null; nome?: string }
+) {
   return useSupabase ? remote.updateSupabaseUserProfile(id, updates) : local.updateUserProfile(id, updates);
+}
+
+export async function uploadUserAvatar(userId: string, file: File): Promise<string> {
+  return useSupabase ? remote.uploadUserAvatar(userId, file) : local.uploadUserAvatar(userId, file);
+}
+
+export async function removeUserAvatar(userId: string): Promise<void> {
+  return useSupabase ? remote.removeUserAvatar(userId) : local.removeUserAvatar(userId);
 }
 
 export async function updateUserRole(id: string, isAdmin: boolean) {

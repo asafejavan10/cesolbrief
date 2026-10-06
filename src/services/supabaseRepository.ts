@@ -14,7 +14,7 @@ export async function signInWithSupabase(email: string, password: string): Promi
 
   const { data: profile, error: profileError } = await api
     .from('users')
-    .select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at')
+    .select('id,nome,email,isAdmin,isBlocked,limitBriefings,avatar_url,created_at')
     .eq('id', data.user.id)
     .maybeSingle();
 
@@ -54,7 +54,10 @@ export async function updateSupabasePassword(password: string): Promise<void> {
 }
 
 export async function fetchUsers(): Promise<User[]> {
-  const { data, error } = await client().from('users').select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at').order('created_at', { ascending: false });
+  const { data, error } = await client()
+    .from('users')
+    .select('id,nome,email,isAdmin,isBlocked,limitBriefings,avatar_url,created_at')
+    .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data || []) as User[];
 }
@@ -67,7 +70,7 @@ export async function setSupabaseUserRole(id: string, isAdmin: boolean): Promise
 export async function getUserProfile(id: string): Promise<User> {
   const { data, error } = await client()
     .from('users')
-    .select('id,nome,email,isAdmin,isBlocked,limitBriefings,created_at')
+    .select('id,nome,email,isAdmin,isBlocked,limitBriefings,avatar_url,created_at')
     .eq('id', id)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -75,8 +78,58 @@ export async function getUserProfile(id: string): Promise<User> {
   return data as User;
 }
 
-export async function updateSupabaseUserProfile(id: string, updates: { isAdmin?: boolean; isBlocked?: boolean; limitBriefings?: number | null }): Promise<void> {
+export async function updateSupabaseUserProfile(
+  id: string,
+  updates: { isAdmin?: boolean; isBlocked?: boolean; limitBriefings?: number | null; avatar_url?: string | null; nome?: string }
+): Promise<void> {
   const { error } = await client().from('users').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function uploadUserAvatar(userId: string, file: File): Promise<string> {
+  const api = client();
+  if (file.size > 2 * 1024 * 1024) {
+    throw new Error('A foto de perfil deve ter no máximo 2MB.');
+  }
+  const mime = file.type.toLowerCase();
+  if (mime !== 'image/jpeg' && mime !== 'image/png' && mime !== 'image/jpg') {
+    throw new Error('Apenas imagens nos formatos JPG ou PNG são permitidas.');
+  }
+
+  const extension = file.name.split('.').pop() || 'jpg';
+  const path = `avatars/${userId}/${Date.now()}.${extension}`;
+
+  const { data, error } = await api.storage.from(supabaseBucket).upload(path, file, {
+    cacheControl: '3600',
+    contentType: file.type || 'image/jpeg',
+    upsert: true,
+  });
+  if (error) throw new Error(error.message);
+
+  const { data: publicUrl } = api.storage.from(supabaseBucket).getPublicUrl(data.path);
+  const avatar_url = publicUrl.publicUrl;
+
+  const { error: userError } = await api.from('users').update({ avatar_url }).eq('id', userId);
+  if (userError) throw new Error(userError.message);
+
+  return avatar_url;
+}
+
+export async function removeUserAvatar(userId: string): Promise<void> {
+  const api = client();
+  const { data: user } = await api.from('users').select('avatar_url').eq('id', userId).maybeSingle();
+  if (user?.avatar_url) {
+    try {
+      const urlParts = user.avatar_url.split(`/storage/v1/object/public/${supabaseBucket}/`);
+      if (urlParts.length === 2) {
+        await api.storage.from(supabaseBucket).remove([urlParts[1]]);
+      }
+    } catch (storageErr) {
+      console.error('Erro ao remover avatar antigo do storage:', storageErr);
+    }
+  }
+
+  const { error } = await api.from('users').update({ avatar_url: null }).eq('id', userId);
   if (error) throw new Error(error.message);
 }
 
