@@ -103,6 +103,21 @@ export function ensureSeed() {
     ];
     write(BRIEFINGS_KEY, sample);
   }
+  if (!localStorage.getItem(NOTIFICATIONS_KEY)) {
+    const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
+    const sampleNotification: Notification[] = [
+      {
+        id: crypto.randomUUID(),
+        title: 'Novo briefing recebido',
+        message: 'Sabores da Serra foi enviado por Wendel.',
+        type: 'novo_briefing',
+        briefing_id: briefings[0]?.id || '',
+        read: false,
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+      },
+    ];
+    write(NOTIFICATIONS_KEY, sampleNotification);
+  }
   if (!localStorage.getItem(SETTINGS_KEY)) write<Settings>(SETTINGS_KEY, { briefingsPaused: false, activeQuarter: 8, maxClosedQuarter: 7, createdQuarters: [8] });
 }
 

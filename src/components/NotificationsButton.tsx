@@ -1,5 +1,5 @@
 import { Bell, CheckCircle2, ClipboardPlus, PlayCircle, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getNotifications, markNotificationsRead, deleteNotification } from '../services/dataProvider';
 import { Notification } from '../types';
@@ -8,6 +8,7 @@ import { formatDate } from '../utils/format';
 export function NotificationsButton() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
   const unread = notifications.filter((notification) => !notification.read).length;
 
   useEffect(() => {
@@ -22,6 +23,20 @@ export function NotificationsButton() {
       window.removeEventListener('storage', refresh);
     };
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
 
   function toggle() {
     const nextOpen = !open;
@@ -46,7 +61,7 @@ export function NotificationsButton() {
   }
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button className="btn-secondary relative px-3 py-2" onClick={toggle} type="button" aria-label="Abrir notificações">
         <Bell size={18} />
         {unread > 0 && (
@@ -56,7 +71,7 @@ export function NotificationsButton() {
         )}
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 z-50 mb-3 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-soft animate-in slide-in-from-bottom-2 duration-200">
+        <div className="absolute right-0 top-full z-50 mt-2 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-soft animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="border-b border-stone-100 p-4">
             <p className="text-sm font-black text-stone-950">Notificações</p>
             <p className="mt-1 text-xs text-stone-500">Novos briefings, início e finalização aparecem aqui.</p>
