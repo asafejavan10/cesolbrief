@@ -1,14 +1,13 @@
 import {
   Archive,
+  Calendar,
   CheckCircle2,
   ClipboardList,
   Download,
   Eye,
   History,
-  PauseCircle,
-  PlayCircle,
+  Layers,
   Search,
-  Sparkles,
   Trash2,
   TrendingUp,
 } from 'lucide-react';
@@ -22,34 +21,41 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import {
-  closeQuarter,
   deleteBriefing,
   getBriefings,
   getSettings,
   getUsers,
-  openQuarter,
   updateBriefingStatus,
 } from '../services/dataProvider';
 import { Briefing, BriefingStatus } from '../types';
+import { cn } from '../utils/cn';
 import { formatDate } from '../utils/format';
-import { formatQuarterLabel, isQuarterMatch } from '../utils/quarterUtils';
+import {
+  UNTAGGED_QUARTER_LABEL,
+  extractQuarterNumber,
+  formatQuarterLabel,
+  getAllHistoricalQuarters,
+  isQuarterMatch,
+} from '../utils/quarterUtils';
 
-export function Dashboard() {
+export function HistoryQuarters() {
   const { user } = useAuth();
   const [briefings, setBriefings] = useState<Briefing[]>([]);
-  const [paused, setPaused] = useState(false);
   const [activeQuarter, setActiveQuarter] = useState(8);
   const [maxClosedQuarter, setMaxClosedQuarter] = useState(7);
+  const [createdQuarters, setCreatedQuarters] = useState<number[]>([]);
+  const [paused, setPaused] = useState(false);
 
-  // Filters for Vigente
+  // Selected quarter in history
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('todos');
+
+  // Filters
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('todos');
   const [agente, setAgente] = useState('todos');
   const [servico, setServico] = useState('todos');
 
   const [removeId, setRemoveId] = useState<string | null>(null);
-  const [openQuarterModal, setOpenQuarterModal] = useState(false);
-  const [quarterInput, setQuarterInput] = useState('');
   const [tecnicos, setTecnicos] = useState<string[]>([]);
 
   useEffect(() => {
@@ -79,17 +85,68 @@ export function Dashboard() {
         setPaused(settings.briefingsPaused);
         setActiveQuarter(settings.activeQuarter);
         setMaxClosedQuarter(settings.maxClosedQuarter);
+        setCreatedQuarters(settings.createdQuarters || [settings.activeQuarter || 8]);
       })
       .catch(() => setPaused(false));
   }, [refresh]);
 
-  // Briefings strictly for the active current quarter
-  const currentQuarterBriefings = useMemo(() => {
-    return briefings.filter((b) => isQuarterMatch(b.trimestre, activeQuarter));
-  }, [briefings, activeQuarter]);
+  // All historical quarters (ONLY quarters that were actually created in the system)
+  const historicalQuarters = useMemo(() => {
+    return getAllHistoricalQuarters(briefings, createdQuarters, activeQuarter, paused);
+  }, [briefings, createdQuarters, activeQuarter, paused]);
 
+  // Check if there are briefings without a quarter set
+  const hasUntaggedBriefings = useMemo(() => {
+    return briefings.some((b) => !b.trimestre || !b.trimestre.trim());
+  }, [briefings]);
+
+  // When historicalQuarters load, set default selection to the most recently closed quarter
+  useEffect(() => {
+    if (selectedQuarter === 'todos' && historicalQuarters.length > 0) {
+      // Default to the first closed quarter
+      setSelectedQuarter(historicalQuarters[0]);
+    }
+  }, [historicalQuarters, selectedQuarter]);
+
+  // Filter historical briefings for the selected quarter
+  const historicalBriefings = useMemo(() => {
+    return briefings.filter((briefing) => {
+      // If system is NOT paused, exclude briefings belonging to the active quarter
+      if (!paused && isQuarterMatch(briefing.trimestre, activeQuarter)) {
+        return false;
+      }
+
+      if (selectedQuarter === 'todos') {
+        return true;
+      }
+
+      if (selectedQuarter === UNTAGGED_QUARTER_LABEL) {
+        return !briefing.trimestre || !briefing.trimestre.trim();
+      }
+
+      // Match by quarter label or number
+      const qNum = extractQuarterNumber(selectedQuarter);
+      if (qNum !== null) {
+        return isQuarterMatch(briefing.trimestre, qNum);
+      }
+
+      return briefing.trimestre === selectedQuarter;
+    });
+  }, [briefings, paused, activeQuarter, selectedQuarter]);
+
+  // Metrics for the currently selected quarter
+  const metrics = useMemo(() => {
+    return {
+      total: historicalBriefings.length,
+      novos: historicalBriefings.filter((item) => item.status === 'novo').length,
+      andamento: historicalBriefings.filter((item) => item.status === 'em_andamento').length,
+      concluidos: historicalBriefings.filter((item) => item.status === 'concluido').length,
+    };
+  }, [historicalBriefings]);
+
+  // Filtered by search terms
   const filtered = useMemo(() => {
-    return currentQuarterBriefings
+    return historicalBriefings
       .filter((briefing) => status === 'todos' || briefing.status === status)
       .filter((briefing) => agente === 'todos' || briefing.agente === agente)
       .filter((briefing) => servico === 'todos' || briefing.servico === servico)
@@ -99,131 +156,157 @@ export function Dashboard() {
           .includes(query.toLowerCase())
       )
       .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  }, [agente, currentQuarterBriefings, query, servico, status]);
+  }, [historicalBriefings, status, agente, servico, query]);
 
-  const metrics = useMemo(() => {
-    return {
-      total: currentQuarterBriefings.length,
-      novos: currentQuarterBriefings.filter((item) => item.status === 'novo').length,
-      andamento: currentQuarterBriefings.filter((item) => item.status === 'em_andamento').length,
-      concluidos: currentQuarterBriefings.filter((item) => item.status === 'concluido').length,
-    };
-  }, [currentQuarterBriefings]);
-
-  async function handleCloseQuarter() {
-    try {
-      await closeQuarter(activeQuarter);
-      setPaused(true);
-      setMaxClosedQuarter(activeQuarter);
-      toast.success(
-        `Trimestre ${activeQuarter} fechado com sucesso! Os briefings anteriores foram arquivados no Histórico.`
-      );
-    } catch {
-      toast.error('Erro ao fechar o trimestre.');
-    }
-  }
-
-  async function handleOpenQuarter(qNumber: number) {
-    try {
-      await openQuarter(qNumber);
-      setPaused(false);
-      setActiveQuarter(qNumber);
-
-      let newMaxClosed = maxClosedQuarter;
-      if (qNumber <= maxClosedQuarter) {
-        newMaxClosed = qNumber - 1;
-        setMaxClosedQuarter(newMaxClosed);
+  // Helper count of briefings per quarter for chips
+  const countPerQuarter = useCallback(
+    (qLabel: string) => {
+      const qNum = extractQuarterNumber(qLabel);
+      if (qNum !== null) {
+        return briefings.filter((b) => isQuarterMatch(b.trimestre, qNum)).length;
       }
-      toast.success(
-        `Trimestre ${qNumber} aberto com sucesso! A tela foi zerada para receber novos briefings.`
-      );
-    } catch {
-      toast.error('Erro ao abrir o trimestre.');
-    }
-  }
+      return briefings.filter((b) => b.trimestre === qLabel).length;
+    },
+    [briefings]
+  );
 
   return (
     <DashboardLayout>
-      {/* Top Header */}
+      {/* Header */}
       <div className="border-b border-stone-200 bg-white px-4 py-5 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-cesol-800">
-                Dashboard administrativo
+                Administração
               </span>
               <span className="text-stone-300">•</span>
-              <span className="text-xs font-bold text-stone-500">Trimestre Vigente</span>
+              <span className="text-xs font-bold text-stone-500">Histórico de Trimestres</span>
             </div>
-            <h1 className="mt-1 text-3xl font-black text-stone-950">Briefings</h1>
+            <h1 className="mt-1 text-3xl font-black text-stone-950 flex items-center gap-3">
+              <History className="text-cesol-700" size={30} />
+              Histórico de Trimestres
+            </h1>
+            <p className="mt-1 text-xs text-stone-500">
+              Consulte e audite briefings de todos os ciclos e trimestres anteriores fechados.
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3">
             <span className="text-xs font-bold text-stone-500">
-              Trimestre: <strong className="text-stone-900">{paused ? 'Fechado/Pausado' : formatQuarterLabel(activeQuarter)}</strong>
+              Trimestre Atual:
             </span>
-            {paused ? (
-              <button
-                className="btn-primary bg-emerald-700 hover:bg-emerald-800 animate-none font-semibold text-sm"
-                onClick={() => {
-                  setQuarterInput(String(maxClosedQuarter + 1));
-                  setOpenQuarterModal(true);
-                }}
-                type="button"
-              >
-                <PlayCircle size={18} /> Abrir {maxClosedQuarter + 1}º Trimestre
-              </button>
-            ) : (
-              <button className="btn-secondary" onClick={handleCloseQuarter} type="button">
-                <PauseCircle size={18} /> Fechar {activeQuarter}º Trimestre
-              </button>
-            )}
-            <Link
-              to="/dashboard/historico"
-              className="btn-secondary text-xs inline-flex items-center gap-1.5"
-            >
-              <History size={16} /> Ver Histórico
-            </Link>
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-bold text-stone-700">
+              <span className={cn('h-2 w-2 rounded-full', paused ? 'bg-amber-500' : 'bg-emerald-500')} />
+              {paused ? 'Pausado/Fechado' : formatQuarterLabel(activeQuarter)}
+            </span>
           </div>
         </div>
       </div>
 
       <div className="px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-        {paused && (
-          <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <PauseCircle className="shrink-0 text-amber-600" size={22} />
-              <div>
-                <p className="font-bold">O {activeQuarter}º Trimestre foi fechado (recebimento pausado).</p>
-                <p className="text-xs text-amber-700 font-normal">
-                  Todos os briefings anteriores estão no menu <strong>Histórico de Trimestres</strong>. Para iniciar o novo ciclo com a tela zerada, abra o próximo trimestre.
-                </p>
-              </div>
+        {/* Quarter Selection Panel */}
+        <div className="panel p-5 bg-gradient-to-r from-stone-900 to-stone-950 text-white border-stone-800 shadow-md">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-cesol-400">
+                Seletor de Período Histórico
+              </span>
+              <h2 className="mt-1 text-xl font-black text-white">
+                {selectedQuarter === 'todos'
+                  ? 'Todos os Trimestres Anteriores'
+                  : selectedQuarter}
+              </h2>
+              <p className="mt-1 text-xs text-stone-400">
+                Mostrando os dados e solicitações arquivadas deste período.
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="btn-primary bg-emerald-700 hover:bg-emerald-800 text-xs py-2 px-3 font-bold shrink-0"
-                onClick={() => {
-                  setQuarterInput(String(maxClosedQuarter + 1));
-                  setOpenQuarterModal(true);
-                }}
-                type="button"
+
+            {/* Quarter dropdown */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <span className="text-xs font-bold text-stone-400">Selecionar Trimestre:</span>
+              <select
+                value={selectedQuarter}
+                onChange={(e) => setSelectedQuarter(e.target.value)}
+                className="rounded-xl border border-stone-700 bg-stone-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm outline-none focus:border-cesol-500"
               >
-                <PlayCircle size={15} /> Abrir {maxClosedQuarter + 1}º Trimestre
-              </button>
-              <Link
-                to="/dashboard/historico"
-                className="btn-secondary bg-white text-xs py-2 px-3 shrink-0 inline-flex items-center gap-1"
-              >
-                <History size={14} /> Acessar Histórico
-              </Link>
+                <option value="todos">Todos os Trimestres Anteriores</option>
+                {historicalQuarters.map((q) => (
+                  <option key={q} value={q}>
+                    {q} ({countPerQuarter(q)} briefings)
+                  </option>
+                ))}
+                {hasUntaggedBriefings && (
+                  <option value={UNTAGGED_QUARTER_LABEL}>
+                    {UNTAGGED_QUARTER_LABEL}
+                  </option>
+                )}
+              </select>
             </div>
           </div>
-        )}
 
-        {/* Metrics for Vigente */}
+          {/* Quick chips / pills for quarters */}
+          <div className="mt-4 pt-4 border-t border-stone-800 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-stone-400 font-bold mr-1">Atalhos rápidos:</span>
+            <button
+              onClick={() => setSelectedQuarter('todos')}
+              className={cn(
+                'rounded-lg px-3 py-1 text-xs font-bold transition-all',
+                selectedQuarter === 'todos'
+                  ? 'bg-cesol-600 text-white ring-2 ring-cesol-400'
+                  : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+              )}
+              type="button"
+            >
+              Todos ({briefings.length})
+            </button>
+            {historicalQuarters.map((q) => {
+              const isSelected = selectedQuarter === q;
+              const count = countPerQuarter(q);
+              return (
+                <button
+                  key={q}
+                  onClick={() => setSelectedQuarter(q)}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-bold transition-all',
+                    isSelected
+                      ? 'bg-cesol-600 text-white ring-2 ring-cesol-400'
+                      : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                  )}
+                  type="button"
+                >
+                  <span>{q.split('/')[0]}</span>
+                  <span
+                    className={cn(
+                      'rounded px-1.5 py-0.2 text-[10px] font-semibold',
+                      isSelected ? 'bg-cesol-700 text-white' : 'bg-stone-700 text-stone-300'
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+            {hasUntaggedBriefings && (
+              <button
+                onClick={() => setSelectedQuarter(UNTAGGED_QUARTER_LABEL)}
+                className={cn(
+                  'rounded-lg px-3 py-1 text-xs font-bold transition-all',
+                  selectedQuarter === UNTAGGED_QUARTER_LABEL
+                    ? 'bg-cesol-600 text-white ring-2 ring-cesol-400'
+                    : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                )}
+                type="button"
+              >
+                Sem Trimestre
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Metrics for the selected quarter */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            label={`Total no ${activeQuarter}º Trimestre`}
+            label="Total no Período"
             value={metrics.total}
             icon={ClipboardList}
             tone="bg-cesol-50 text-cesol-800"
@@ -248,12 +331,12 @@ export function Dashboard() {
           />
         </div>
 
-        {/* Filter toolbar */}
+        {/* Filter bar */}
         <div className="panel p-4">
           <div className="grid gap-3 lg:grid-cols-[1fr_160px_160px_160px]">
             <label className="block">
               <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">
-                Pesquisar
+                Pesquisar no Histórico
               </span>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-3.5 text-stone-400" size={18} />
@@ -269,7 +352,11 @@ export function Dashboard() {
               <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">
                 Status
               </span>
-              <Select value={status} onChange={setStatus} options={['todos', 'novo', 'em_andamento', 'concluido']} />
+              <Select
+                value={status}
+                onChange={setStatus}
+                options={['todos', 'novo', 'em_andamento', 'concluido']}
+              />
             </label>
             <label className="block">
               <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">
@@ -290,32 +377,33 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Current Quarter Table or Empty State */}
+        {/* Table or Empty State */}
         <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-card">
-          {currentQuarterBriefings.length === 0 ? (
+          {historicalBriefings.length === 0 ? (
             <div className="p-10 text-center space-y-3">
-              <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-cesol-50 text-cesol-700">
-                <Sparkles size={28} />
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 text-stone-500">
+                <Archive size={28} />
               </div>
               <h3 className="text-xl font-black text-stone-950">
-                {activeQuarter}º Trimestre iniciado e zerado!
+                Nenhum briefing preenchido no {selectedQuarter}
               </h3>
               <p className="mx-auto max-w-md text-sm text-stone-500">
-                A tela está zerada para este novo ciclo. As novas solicitações enviadas pelos técnicos aparecerão aqui.
+                Este trimestre está devidamente registrado no histórico, porém nenhuma solicitação foi enviada nele (total de 0 briefings).
               </p>
               <div className="pt-2">
-                <Link
-                  to="/dashboard/historico"
+                <button
+                  onClick={() => setSelectedQuarter('todos')}
                   className="btn-secondary text-xs inline-flex items-center gap-2"
+                  type="button"
                 >
-                  <History size={16} /> Consultar trimestres anteriores no Histórico
-                </Link>
+                  <History size={15} /> Ver todos os trimestres anteriores
+                </button>
               </div>
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState
               title="Nenhum briefing encontrado"
-              description="Ajuste os filtros de pesquisa ou status."
+              description="Ajuste os filtros de pesquisa ou status para localizar solicitações."
             />
           ) : (
             <div className="overflow-x-auto">
@@ -323,6 +411,7 @@ export function Dashboard() {
                 <thead className="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
                   <tr>
                     <th className="px-5 py-4">Empreendimento</th>
+                    <th className="px-5 py-4">Trimestre</th>
                     <th className="px-5 py-4">Técnico</th>
                     <th className="px-5 py-4">Cidade</th>
                     <th className="px-5 py-4">Serviço</th>
@@ -335,6 +424,11 @@ export function Dashboard() {
                   {filtered.map((briefing) => (
                     <tr key={briefing.id} className="hover:bg-stone-50/80">
                       <td className="px-5 py-4 font-bold text-stone-950">{briefing.empreendimento}</td>
+                      <td className="px-5 py-4 text-xs font-bold text-stone-500">
+                        <span className="rounded-md bg-stone-100 px-2 py-1 text-stone-700">
+                          {briefing.trimestre || 'Não especificado'}
+                        </span>
+                      </td>
                       <td className="px-5 py-4 text-sm text-stone-600">{briefing.agente}</td>
                       <td className="px-5 py-4 text-sm text-stone-600">{briefing.cidade}</td>
                       <td className="px-5 py-4 text-sm text-stone-600">
@@ -391,11 +485,10 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Confirm remove modal */}
       <ConfirmModal
         open={Boolean(removeId)}
         title="Excluir briefing?"
-        description="Essa solicitação será removida da listagem local. Em produção, a exclusão passa pelo endpoint serverless."
+        description="Essa solicitação será removida permanentemente do histórico."
         onCancel={() => setRemoveId(null)}
         onConfirm={async () => {
           if (!removeId) return;
@@ -412,91 +505,6 @@ export function Dashboard() {
           }
         }}
       />
-
-      {/* Open Quarter Modal */}
-      {openQuarterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-sm">
-          <div className="panel w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200 bg-white">
-            <h3 className="text-xl font-black text-stone-950">Qual trimestre você quer abrir?</h3>
-            <p className="mt-2 text-sm text-stone-500">
-              Informe o número do trimestre para abrir o recebimento de novos briefings e iniciar a tela com o novo ciclo.
-            </p>
-
-            <div className="mt-4">
-              <label className="block">
-                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">
-                  Número do Trimestre
-                </span>
-                <input
-                  type="number"
-                  className="input text-lg font-black"
-                  value={quarterInput}
-                  onChange={(e) => setQuarterInput(e.target.value)}
-                  placeholder="Ex.: 9"
-                  min="1"
-                />
-              </label>
-            </div>
-
-            {quarterInput && Number(quarterInput) <= maxClosedQuarter && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-2">
-                <p className="font-bold">Atenção!</p>
-                <p>O trimestre {quarterInput} já foi criado ou fechado anteriormente.</p>
-                <p>
-                  Deseja reabrir o trimestre {quarterInput} ou criar um novo trimestre ({Number(quarterInput) + 1})?
-                </p>
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-wrap gap-3 justify-end">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setOpenQuarterModal(false)}
-              >
-                Cancelar
-              </button>
-
-              {quarterInput && Number(quarterInput) <= maxClosedQuarter ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn-primary bg-amber-600 hover:bg-amber-700"
-                    onClick={() => {
-                      void handleOpenQuarter(Number(quarterInput));
-                      setOpenQuarterModal(false);
-                    }}
-                  >
-                    Reabrir o {quarterInput}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => {
-                      void handleOpenQuarter(Number(quarterInput) + 1);
-                      setOpenQuarterModal(false);
-                    }}
-                  >
-                    Criar Novo ({Number(quarterInput) + 1})
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={!quarterInput || Number(quarterInput) <= 0}
-                  onClick={() => {
-                    void handleOpenQuarter(Number(quarterInput));
-                    setOpenQuarterModal(false);
-                  }}
-                >
-                  Confirmar e Abrir
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   );
 }

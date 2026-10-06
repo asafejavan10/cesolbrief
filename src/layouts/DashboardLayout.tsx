@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ReactNode, useState } from 'react';
-import { BarChart3, Home, LogOut, Menu, X, UserCog, Users } from 'lucide-react';
+import { BarChart3, History, Home, LogOut, Menu, X, UserCog, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../utils/cn';
@@ -9,15 +9,17 @@ import { NotificationsButton } from '../components/NotificationsButton';
 import { Sidebar } from '../components/Sidebar';
 
 const menuItems = [
-  { to: '/dashboard', label: 'Home', icon: Home },
-  { to: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
-  { to: '/dashboard/usuarios', label: 'Usuários', icon: UserCog },
-  { to: '/briefing', label: 'Novo briefing', icon: Users },
+  { to: '/dashboard', label: 'Home', icon: Home, adminOnly: false },
+  { to: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
+  { to: '/dashboard/usuarios', label: 'Usuários', icon: UserCog, adminOnly: true },
+  { to: '/briefing', label: 'Novo briefing', icon: Users, adminOnly: false },
+  { to: '/dashboard/historico', label: 'Histórico de Trimestres', icon: History, adminOnly: true },
 ];
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const visibleMenuItems = menuItems.filter((item) => !item.adminOnly || user?.isAdmin);
 
   return (
     <div className="min-h-screen bg-stone-50 lg:flex animate-in fade-in duration-200">
@@ -68,10 +70,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               </div>
 
               <nav className="mt-8 flex flex-1 flex-col gap-2">
-                {menuItems.map((item) => (
+                {visibleMenuItems.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
+                    end={item.to === '/dashboard'}
                     onClick={() => setMenuOpen(false)}
                     className={({ isActive }) =>
                       cn(
@@ -112,17 +115,32 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Desktop Sidebar */}
+      {/* Desktop Persistent Sidebar */}
       <Sidebar />
 
-      {/* Main Content */}
-      <main className="relative min-w-0 flex-1">
-        <div className="fixed bottom-4 right-4 z-40 lg:bottom-8 lg:right-8">
-          <NotificationsButton />
+      {/* Main Content Area */}
+      <div className="min-w-0 flex-1">
+        {/* Desktop Header bar */}
+        <div className="hidden border-b border-stone-200/80 bg-white/50 px-8 py-3.5 backdrop-blur-sm lg:flex lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-stone-400">
+              Painel Operacional CESOL
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <NotificationsButton />
+            <div className="h-4 w-px bg-stone-200" />
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-semibold text-stone-600">
+                Sistema Online
+              </span>
+            </div>
+          </div>
         </div>
-        {children}
-      </main>
+
+        <main className="animate-in fade-in duration-200">{children}</main>
+      </div>
     </div>
   );
 }
-

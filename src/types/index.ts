@@ -68,6 +68,7 @@ export type Settings = {
   briefingsPaused: boolean;
   activeQuarter: number;
   maxClosedQuarter: number;
+  createdQuarters?: number[];
 };
 
 export type Notification = {

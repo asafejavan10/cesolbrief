@@ -1,6 +1,5 @@
 import { BarChart3, Download, FileSpreadsheet, FileText, Filter, PieChart } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { MetricCard } from '../components/MetricCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -10,11 +9,13 @@ import { getBriefings, getUsers } from '../services/dataProvider';
 import { Briefing } from '../types';
 import { exportCsv, exportExcel, exportPdf } from '../utils/exportReports';
 import { formatDate } from '../utils/format';
+import { getDistinctQuarters } from '../utils/quarterUtils';
 
 export function Reports() {
   const { user } = useAuth();
   const [briefings, setBriefings] = useState<Briefing[]>([]);
   const [status, setStatus] = useState('todos');
+  const [trimestre, setTrimestre] = useState('todos');
   const [agente, setAgente] = useState('todos');
   const [servico, setServico] = useState('todos');
   const [tecnicos, setTecnicos] = useState<string[]>([]);
@@ -39,13 +40,18 @@ export function Reports() {
     getBriefings(user).then(setBriefings).catch(() => setBriefings([]));
   }, [user]);
 
+  const trimestresOptions = useMemo(() => {
+    return ['todos', ...getDistinctQuarters(briefings)];
+  }, [briefings]);
+
   const filtered = useMemo(() => {
     return briefings
       .filter((briefing) => status === 'todos' || briefing.status === status)
+      .filter((briefing) => trimestre === 'todos' || briefing.trimestre === trimestre)
       .filter((briefing) => agente === 'todos' || briefing.agente === agente)
       .filter((briefing) => servico === 'todos' || briefing.servico === servico)
       .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  }, [agente, briefings, servico, status]);
+  }, [agente, briefings, servico, status, trimestre]);
 
   async function exportWithFeedback(format: 'csv' | 'excel' | 'pdf') {
     if (filtered.length === 0) {
@@ -73,12 +79,16 @@ export function Reports() {
         </div>
 
         <section className="panel mt-6 p-4">
-          <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_180px]">
+          <div className="grid gap-3 lg:grid-cols-[1fr_160px_160px_160px_160px]">
             <div className="flex h-full items-end">
               <div className="flex w-full items-center gap-3 rounded-xl bg-stone-50 px-4 py-3 text-sm font-bold text-stone-600">
                 <Filter size={18} /> Filtros do relatório
               </div>
             </div>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Trimestre</span>
+              <Select value={trimestre} onChange={setTrimestre} options={trimestresOptions} />
+            </label>
             <label className="block">
               <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">Status</span>
               <Select value={status} onChange={setStatus} options={['todos', 'novo', 'em_andamento', 'concluido']} />
@@ -108,6 +118,7 @@ export function Reports() {
               <thead className="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
                 <tr>
                   <th className="px-5 py-4">Empreendimento</th>
+                  <th className="px-5 py-4">Trimestre</th>
                   <th className="px-5 py-4">Técnico</th>
                   <th className="px-5 py-4">Serviço</th>
                   <th className="px-5 py-4">Status</th>
@@ -119,6 +130,7 @@ export function Reports() {
                 {filtered.map((briefing) => (
                   <tr key={briefing.id}>
                     <td className="px-5 py-4 font-bold text-stone-950">{briefing.empreendimento}</td>
+                    <td className="px-5 py-4 text-xs font-bold text-stone-500">{briefing.trimestre || '-'}</td>
                     <td className="px-5 py-4 text-sm text-stone-600">{briefing.agente}</td>
                     <td className="px-5 py-4 text-sm text-stone-600">{briefing.servico === 'Outro' ? briefing.servico_outro : briefing.servico}</td>
                     <td className="px-5 py-4"><StatusBadge status={briefing.status} /></td>

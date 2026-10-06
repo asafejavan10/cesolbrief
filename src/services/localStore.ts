@@ -52,6 +52,7 @@ export function ensureSeed() {
         descricao: 'Criar identidade visual para empreendimento de alimentos artesanais com aplicação em redes sociais e etiqueta.',
         status: 'novo',
         situacao: 'ativo',
+        trimestre: '8º Trimestre/051.2024',
         created_at: new Date(Date.now() - 86400000).toISOString(),
         user_id: 'user-1',
         arquivos: [],
@@ -68,6 +69,7 @@ export function ensureSeed() {
         descricao: 'Melhorar cards de divulgação para campanha de Dia das Mães, mantendo as cores atuais da marca.',
         status: 'em_andamento',
         situacao: 'ativo',
+        trimestre: '8º Trimestre/051.2024',
         created_at: new Date(Date.now() - 172800000).toISOString(),
         user_id: 'user-1',
         arquivos: [],
@@ -77,7 +79,7 @@ export function ensureSeed() {
     ];
     write(BRIEFINGS_KEY, sample);
   }
-  if (!localStorage.getItem(SETTINGS_KEY)) write<Settings>(SETTINGS_KEY, { briefingsPaused: false, activeQuarter: 8, maxClosedQuarter: 7 });
+  if (!localStorage.getItem(SETTINGS_KEY)) write<Settings>(SETTINGS_KEY, { briefingsPaused: false, activeQuarter: 8, maxClosedQuarter: 7, createdQuarters: [8] });
 }
 
 export function getUsers() {
@@ -365,7 +367,11 @@ export function addComment(id: string, autor: string, texto: string) {
 
 export function getSettings() {
   ensureSeed();
-  return read<Settings>(SETTINGS_KEY, { briefingsPaused: false, activeQuarter: 8, maxClosedQuarter: 7 });
+  const saved = read<Settings>(SETTINGS_KEY, { briefingsPaused: false, activeQuarter: 8, maxClosedQuarter: 7, createdQuarters: [8] });
+  if (!saved.createdQuarters || saved.createdQuarters.length === 0) {
+    saved.createdQuarters = [saved.activeQuarter || 8];
+  }
+  return saved;
 }
 
 export function setBriefingsPaused(briefingsPaused: boolean) {
@@ -375,21 +381,25 @@ export function setBriefingsPaused(briefingsPaused: boolean) {
 
 export function closeQuarter(quarterNumber: number) {
   const current = getSettings();
+  const createdQuarters = Array.from(new Set([...(current.createdQuarters || [current.activeQuarter]), quarterNumber]));
   write<Settings>(SETTINGS_KEY, {
     ...current,
     briefingsPaused: true,
     maxClosedQuarter: quarterNumber,
+    createdQuarters,
   });
 }
 
 export function openQuarter(quarterNumber: number) {
   const current = getSettings();
+  const createdQuarters = Array.from(new Set([...(current.createdQuarters || [current.activeQuarter]), quarterNumber]));
   const newMaxClosed = current.maxClosedQuarter >= quarterNumber ? quarterNumber - 1 : current.maxClosedQuarter;
   write<Settings>(SETTINGS_KEY, {
     ...current,
     briefingsPaused: false,
     activeQuarter: quarterNumber,
     maxClosedQuarter: newMaxClosed,
+    createdQuarters,
   });
 }
 

@@ -285,6 +285,9 @@ export async function fetchSupabaseSettings(): Promise<Settings> {
     briefingsPaused: Boolean(data?.value?.paused),
     activeQuarter: Number(data?.value?.active_quarter ?? 8),
     maxClosedQuarter: Number(data?.value?.max_closed_quarter ?? 7),
+    createdQuarters: Array.isArray(data?.value?.created_quarters)
+      ? data.value.created_quarters.map(Number)
+      : [Number(data?.value?.active_quarter ?? 8)],
   };
 }
 
@@ -306,6 +309,10 @@ export async function closeSupabaseQuarter(quarterNumber: number) {
   const api = client();
   const { data } = await api.from('settings').select('value').eq('key', 'briefings_paused').single();
   const current = data?.value || { active_quarter: quarterNumber, max_closed_quarter: quarterNumber - 1 };
+  const currentCreated: number[] = Array.isArray(current.created_quarters)
+    ? current.created_quarters.map(Number)
+    : [current.active_quarter ? Number(current.active_quarter) : quarterNumber];
+  const newCreated = Array.from(new Set([...currentCreated, quarterNumber]));
   const { error } = await api
     .from('settings')
     .upsert({
@@ -314,6 +321,7 @@ export async function closeSupabaseQuarter(quarterNumber: number) {
         ...current,
         paused: true,
         max_closed_quarter: quarterNumber,
+        created_quarters: newCreated,
       },
       updated_at: new Date().toISOString(),
     });
@@ -324,6 +332,10 @@ export async function openSupabaseQuarter(quarterNumber: number) {
   const api = client();
   const { data } = await api.from('settings').select('value').eq('key', 'briefings_paused').single();
   const current = data?.value || { active_quarter: quarterNumber, max_closed_quarter: quarterNumber - 1 };
+  const currentCreated: number[] = Array.isArray(current.created_quarters)
+    ? current.created_quarters.map(Number)
+    : [current.active_quarter ? Number(current.active_quarter) : 8];
+  const newCreated = Array.from(new Set([...currentCreated, quarterNumber]));
   const newMaxClosed = current.max_closed_quarter >= quarterNumber ? quarterNumber - 1 : current.max_closed_quarter;
   const { error } = await api
     .from('settings')
@@ -334,6 +346,7 @@ export async function openSupabaseQuarter(quarterNumber: number) {
         paused: false,
         active_quarter: quarterNumber,
         max_closed_quarter: newMaxClosed,
+        created_quarters: newCreated,
       },
       updated_at: new Date().toISOString(),
     });

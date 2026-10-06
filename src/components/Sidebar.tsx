@@ -1,28 +1,35 @@
-import { BarChart3, Home, LogOut, PauseCircle, UserCog, Users } from 'lucide-react';
+import { BarChart3, History, Home, LogOut, PauseCircle, UserCog, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { Logo } from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../utils/cn';
 
 const items = [
-  { to: '/dashboard', label: 'Home', icon: Home },
-  { to: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3 },
-  { to: '/dashboard/usuarios', label: 'Usuários', icon: UserCog },
-  { to: '/briefing', label: 'Novo briefing', icon: Users },
+  { to: '/dashboard', label: 'Home', icon: Home, adminOnly: false },
+  { to: '/dashboard/relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
+  { to: '/dashboard/usuarios', label: 'Usuários', icon: UserCog, adminOnly: true },
+  { to: '/briefing', label: 'Novo briefing', icon: Users, adminOnly: false },
+  { to: '/dashboard/historico', label: 'Histórico de Trimestres', icon: History, adminOnly: true },
 ];
 
 export function Sidebar() {
   const { user, logout } = useAuth();
+  const visibleItems = items.filter((item) => !item.adminOnly || user?.isAdmin);
+
   return (
     <aside className="hidden min-h-screen w-72 border-r border-stone-200 bg-white px-5 py-6 lg:flex lg:flex-col">
       <Logo />
       <nav className="mt-8 flex flex-1 flex-col gap-2">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
+            end={item.to === '/dashboard'}
             className={({ isActive }) =>
-              cn('flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition', isActive ? 'bg-cesol-50 text-cesol-800' : 'text-stone-600 hover:bg-stone-100')
+              cn(
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition',
+                isActive ? 'bg-cesol-50 text-cesol-800' : 'text-stone-600 hover:bg-stone-100'
+              )
             }
           >
             <item.icon size={18} />

@@ -17,7 +17,10 @@ import {
   Paperclip,
   Download,
   Edit3,
-  Trash2
+  Trash2,
+  History,
+  Sparkles,
+  Archive,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -31,6 +34,7 @@ import { createBriefing, getSettings, getUserProfile, getBriefings, deleteBriefi
 import { Briefing, BriefingDraft, ServiceName, ServiceType } from '../types';
 import { cn } from '../utils/cn';
 import { formatBytes, formatDate } from '../utils/format';
+import { formatQuarterLabel, getDistinctQuarters, isQuarterMatch } from '../utils/quarterUtils';
 
 const servicos: ServiceName[] = ['Rotulagem', 'Logotipo', 'Rede Social', 'Outro'];
 const initialDraft: BriefingDraft = {
@@ -49,6 +53,8 @@ export function BriefingForm() {
   const [briefingsList, setBriefingsList] = useState<Briefing[]>([]);
   const [expandedBriefingId, setExpandedBriefingId] = useState<string | null>(null);
   const [activeQuarter, setActiveQuarter] = useState(8);
+  const [listTab, setListTab] = useState<'vigente' | 'historico'>('vigente');
+  const [historyQuarter, setHistoryQuarter] = useState('todos');
   const [filterTrimestre, setFilterTrimestre] = useState('todos');
 
   // Form states
@@ -104,14 +110,40 @@ export function BriefingForm() {
     }
   }, [user, draft.agente]);
 
-  // Calculate user metrics
+  // Quarters logic for user
+  const allQuarters = useMemo(() => {
+    return getDistinctQuarters(briefingsList);
+  }, [briefingsList]);
+
+  const pastQuarters = useMemo(() => {
+    return allQuarters.filter((q) => !isQuarterMatch(q, activeQuarter));
+  }, [allQuarters, activeQuarter]);
+
+  const currentQuarterBriefings = useMemo(() => {
+    return briefingsList.filter((b) => isQuarterMatch(b.trimestre, activeQuarter));
+  }, [briefingsList, activeQuarter]);
+
+  const historicalBriefings = useMemo(() => {
+    if (historyQuarter === 'todos') {
+      return briefingsList.filter((b) => !isQuarterMatch(b.trimestre, activeQuarter));
+    }
+    return briefingsList.filter((b) => b.trimestre === historyQuarter);
+  }, [briefingsList, historyQuarter, activeQuarter]);
+
+  useEffect(() => {
+    if (historyQuarter === 'todos' && pastQuarters.length > 0) {
+      setHistoryQuarter(pastQuarters[0]);
+    }
+  }, [pastQuarters, historyQuarter]);
+
+  // Calculate user metrics for current active quarter
   const metrics = useMemo(() => {
     return {
-      novo: briefingsList.filter((b) => b.status === 'novo').length,
-      fazendo: briefingsList.filter((b) => b.status === 'em_andamento').length,
-      concluido: briefingsList.filter((b) => b.status === 'concluido').length,
+      novo: currentQuarterBriefings.filter((b) => b.status === 'novo').length,
+      fazendo: currentQuarterBriefings.filter((b) => b.status === 'em_andamento').length,
+      concluido: currentQuarterBriefings.filter((b) => b.status === 'concluido').length,
     };
-  }, [briefingsList]);
+  }, [currentQuarterBriefings]);
 
   const trimestresOptions = useMemo(() => {
     const list = briefingsList.map((b) => b.trimestre).filter((t): t is string => Boolean(t));
@@ -223,22 +255,34 @@ export function BriefingForm() {
         {/* VIEW 1: PORTAL/DASHBOARD VIEW */}
         {viewMode === 'portal' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-            <div className="flex flex-col gap-2">
-              <h1 className="text-3xl font-black text-stone-950">Olá, {user?.nome}!</h1>
-              <p className="text-stone-500">Acompanhe suas solicitações ou crie um novo briefing de serviço.</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-3xl font-black text-stone-950">Olá, {user?.nome}!</h1>
+                <p className="text-stone-500">Acompanhe suas solicitações ou crie um novo briefing de serviço.</p>
+              </div>
+              <div className="inline-flex items-center gap-2 self-start rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-bold shadow-sm">
+                <span className={cn('h-2 w-2 rounded-full', paused ? 'bg-amber-500' : 'bg-emerald-500')} />
+                <span className="text-stone-500">Ciclo Atual:</span>
+                <span className="text-stone-900 font-black">
+                  {paused ? 'Fechado/Pausado' : formatQuarterLabel(activeQuarter)}
+                </span>
+              </div>
             </div>
 
             {paused && (
               <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">
-                <PauseCircle className="shrink-0" size={20} /> O recebimento de novos briefings está pausado temporariamente.
+                <PauseCircle className="shrink-0" size={20} /> O recebimento de novos briefings está pausado temporariamente pela coordenação.
               </div>
             )}
 
-            {/* Small Dashboard Metrics */}
+            {/* Small Dashboard Metrics for Current Quarter */}
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="panel p-5 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-stone-500">Novo</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-bold text-stone-500">Novo</p>
+                    <span className="text-[10px] font-semibold text-stone-400">({activeQuarter}º Trim.)</span>
+                  </div>
                   <p className="mt-1 text-3xl font-black text-stone-950">{metrics.novo}</p>
                 </div>
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-50 text-amber-800">
@@ -247,7 +291,10 @@ export function BriefingForm() {
               </div>
               <div className="panel p-5 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-stone-500">Fazendo</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-bold text-stone-500">Fazendo</p>
+                    <span className="text-[10px] font-semibold text-stone-400">({activeQuarter}º Trim.)</span>
+                  </div>
                   <p className="mt-1 text-3xl font-black text-stone-950">{metrics.fazendo}</p>
                 </div>
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 text-blue-800">
@@ -256,7 +303,10 @@ export function BriefingForm() {
               </div>
               <div className="panel p-5 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-stone-500">Concluído</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-bold text-stone-500">Concluído</p>
+                    <span className="text-[10px] font-semibold text-stone-400">({activeQuarter}º Trim.)</span>
+                  </div>
                   <p className="mt-1 text-3xl font-black text-stone-950">{metrics.concluido}</p>
                 </div>
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-800">
@@ -265,33 +315,57 @@ export function BriefingForm() {
               </div>
             </div>
 
-            {/* 2x Big Action Buttons */}
-            <div className="grid gap-6 md:grid-cols-2">
+            {/* 3x Big Action Cards */}
+            <div className="grid gap-6 md:grid-cols-3">
               <button
                 type="button"
                 onClick={handleStartNewBriefing}
-                className="group flex flex-col items-center justify-center rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-card transition-all hover:border-cesol-300 hover:shadow-soft active:scale-95"
+                className="group flex flex-col items-center justify-center rounded-3xl border border-stone-200 bg-white p-7 text-center shadow-card transition-all hover:border-cesol-300 hover:shadow-soft active:scale-95"
               >
-                <div className="grid h-16 w-16 place-items-center rounded-2xl bg-cesol-50 text-cesol-600 transition-colors group-hover:bg-cesol-100 group-hover:text-cesol-700">
-                  <PlusCircle size={32} />
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-cesol-50 text-cesol-600 transition-colors group-hover:bg-cesol-100 group-hover:text-cesol-700">
+                  <PlusCircle size={28} />
                 </div>
-                <h3 className="mt-5 text-xl font-black text-stone-950">NOVO BRIEFING</h3>
-                <p className="mt-2 max-w-xs text-sm text-stone-500">
-                  Preencha o questionário passo a passo para enviar uma nova solicitação de design.
+                <h3 className="mt-4 text-lg font-black text-stone-950">NOVO BRIEFING</h3>
+                <p className="mt-2 text-xs text-stone-500">
+                  Preencha o questionário passo a passo para enviar solicitação no {activeQuarter}º Trimestre.
                 </p>
               </button>
 
               <button
                 type="button"
-                onClick={() => setViewMode('list')}
-                className="group flex flex-col items-center justify-center rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-card transition-all hover:border-stone-300 hover:shadow-soft active:scale-95"
+                onClick={() => {
+                  setListTab('vigente');
+                  setViewMode('list');
+                }}
+                className="group flex flex-col items-center justify-center rounded-3xl border border-stone-200 bg-white p-7 text-center shadow-card transition-all hover:border-stone-300 hover:shadow-soft active:scale-95"
               >
-                <div className="grid h-16 w-16 place-items-center rounded-2xl bg-stone-100 text-stone-600 transition-colors group-hover:bg-stone-200 group-hover:text-stone-700">
-                  <FolderOpen size={32} />
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 text-stone-600 transition-colors group-hover:bg-stone-200 group-hover:text-stone-700">
+                  <FolderOpen size={28} />
                 </div>
-                <h3 className="mt-5 text-xl font-black text-stone-950">VER BRIEFINGS SOLICITADOS</h3>
-                <p className="mt-2 max-w-xs text-sm text-stone-500">
-                  Veja a lista completa, status de andamento e feedbacks da equipe operacional.
+                <h3 className="mt-4 text-lg font-black text-stone-950">{activeQuarter}º TRIMESTRE ATUAL</h3>
+                <p className="mt-2 text-xs text-stone-500">
+                  {currentQuarterBriefings.length === 0
+                    ? 'Nenhum briefing solicitado neste ciclo ainda.'
+                    : `Ver ${currentQuarterBriefings.length} solicitação(ões) deste trimestre.`}
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setListTab('historico');
+                  setViewMode('list');
+                }}
+                className="group flex flex-col items-center justify-center rounded-3xl border border-stone-200 bg-white p-7 text-center shadow-card transition-all hover:border-stone-300 hover:shadow-soft active:scale-95"
+              >
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 text-stone-600 transition-colors group-hover:bg-stone-200 group-hover:text-stone-700">
+                  <History size={28} />
+                </div>
+                <h3 className="mt-4 text-lg font-black text-stone-950">HISTÓRICO ANTERIOR</h3>
+                <p className="mt-2 text-xs text-stone-500">
+                  {pastQuarters.length === 0
+                    ? 'Nenhum ciclo anterior arquivado.'
+                    : `Rever briefings arquivados de trimestres passados (${pastQuarters.length} disponíveis).`}
                 </p>
               </button>
             </div>
@@ -443,36 +517,108 @@ export function BriefingForm() {
               >
                 <ArrowLeft size={16} /> Voltar ao Painel
               </button>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-stone-400">Filtrar Trimestre:</span>
-                <select
-                  value={filterTrimestre}
-                  onChange={(e) => setFilterTrimestre(e.target.value)}
-                  className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 outline-none"
+
+              {/* Tabs for technician: Trimestre Vigente vs Histórico */}
+              <div className="flex items-center gap-1 rounded-2xl border border-stone-200 bg-stone-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setListTab('vigente')}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
+                    listTab === 'vigente'
+                      ? 'bg-white text-cesol-800 shadow-sm'
+                      : 'text-stone-600 hover:text-stone-900'
+                  )}
                 >
-                  {trimestresOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt === 'todos' ? 'Todos os Trimestres' : opt}
-                    </option>
-                  ))}
-                </select>
+                  <Sparkles size={14} /> Trimestre Atual ({activeQuarter}º)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setListTab('historico')}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
+                    listTab === 'historico'
+                      ? 'bg-white text-cesol-800 shadow-sm'
+                      : 'text-stone-600 hover:text-stone-900'
+                  )}
+                >
+                  <History size={14} /> Histórico ({pastQuarters.length})
+                </button>
               </div>
             </div>
 
-            <div className="space-y-4">
-              {filteredBriefings.length === 0 ? (
-                <div className="panel p-10 text-center">
-                  <p className="text-stone-500 font-bold">Nenhum briefing solicitado neste trimestre.</p>
-                  <button
-                    onClick={handleStartNewBriefing}
-                    className="btn-primary mt-4"
-                    type="button"
+            {/* If in history tab, show quarter selector */}
+            {listTab === 'historico' && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4">
+                <div className="flex items-center gap-2">
+                  <History className="text-stone-400" size={18} />
+                  <div>
+                    <p className="text-xs font-bold text-stone-800">Filtrar Histórico de Trimestres</p>
+                    <p className="text-[11px] text-stone-400">Consulte seus briefings de ciclos anteriores</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={historyQuarter}
+                    onChange={(e) => setHistoryQuarter(e.target.value)}
+                    className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-bold text-stone-700 outline-none"
                   >
-                    Fazer meu primeiro briefing
-                  </button>
+                    <option value="todos">Todos os Trimestres Anteriores</option>
+                    {pastQuarters.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {listTab === 'vigente' && currentQuarterBriefings.length === 0 ? (
+                <div className="panel p-10 text-center space-y-3">
+                  <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-cesol-50 text-cesol-700">
+                    <Sparkles size={24} />
+                  </div>
+                  <h3 className="text-lg font-black text-stone-950">
+                    Nenhum briefing no {activeQuarter}º Trimestre ainda
+                  </h3>
+                  <p className="mx-auto max-w-md text-sm text-stone-500">
+                    Sua tela está zerada para o novo trimestre. Clique no botão abaixo para solicitar um novo serviço de design.
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-3 pt-2">
+                    <button
+                      onClick={handleStartNewBriefing}
+                      className="btn-primary"
+                      type="button"
+                    >
+                      <PlusCircle size={16} /> Fazer novo briefing
+                    </button>
+                    {pastQuarters.length > 0 && (
+                      <button
+                        onClick={() => setListTab('historico')}
+                        className="btn-secondary"
+                        type="button"
+                      >
+                        <History size={16} /> Ver histórico anterior
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : listTab === 'historico' && historicalBriefings.length === 0 ? (
+                <div className="panel p-10 text-center space-y-3">
+                  <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-stone-100 text-stone-500">
+                    <History size={24} />
+                  </div>
+                  <h3 className="text-lg font-black text-stone-950">
+                    Nenhum briefing encontrado no histórico
+                  </h3>
+                  <p className="text-sm text-stone-500">
+                    Selecione outro trimestre ou consulte os briefings do trimestre atual.
+                  </p>
                 </div>
               ) : (
-                filteredBriefings.map((briefing) => {
+                (listTab === 'vigente' ? currentQuarterBriefings : historicalBriefings).map((briefing) => {
                   const isExpanded = expandedBriefingId === briefing.id;
                   return (
                     <div key={briefing.id} className="panel overflow-hidden transition-all duration-200 hover:border-stone-300">

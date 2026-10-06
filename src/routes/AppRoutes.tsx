@@ -4,6 +4,7 @@ import { BriefingDetail } from '../pages/BriefingDetail';
 import { BriefingForm } from '../pages/BriefingForm';
 import { Dashboard } from '../pages/Dashboard';
 import { ForgotPassword } from '../pages/ForgotPassword';
+import { HistoryQuarters } from '../pages/HistoryQuarters';
 import { Login } from '../pages/Login';
 import { Reports } from '../pages/Reports';
 import { ResetPassword } from '../pages/ResetPassword';
@@ -38,10 +39,10 @@ export function AppRoutes() {
           <Route path="/dashboard" element={<Page><Dashboard /></Page>} />
           <Route path="/dashboard/relatorios" element={<Page><Reports /></Page>} />
           <Route path="/dashboard/usuarios" element={<Page><UsersAdmin /></Page>} />
+          <Route path="/dashboard/historico" element={<Page><HistoryQuarters /></Page>} />
           <Route path="/dashboard/briefings/:id" element={<Page><BriefingDetail /></Page>} />
         </Route>
       </Routes>
     </AnimatePresence>
   );
 }
-
