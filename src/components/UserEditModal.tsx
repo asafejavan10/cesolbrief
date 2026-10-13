@@ -253,7 +253,7 @@ export function UserEditModal({ open, targetUser, onClose, onSave }: UserEditMod
                 </div>
                 <div>
                   <label className="text-sm font-bold text-stone-950">Limitar Geração de Briefings</label>
-                  <p className="text-xs text-stone-500">Define uma cota máxima de briefings que o usuário pode criar.</p>
+                  <p className="text-xs text-stone-500">Define uma cota máxima de briefings que o usuário pode criar por ciclo/trimestre.</p>
                 </div>
               </div>
               <input
@@ -266,18 +266,18 @@ export function UserEditModal({ open, targetUser, onClose, onSave }: UserEditMod
 
             {hasLimit && (
               <div className="ml-11 max-w-[200px] animate-in slide-in-from-top-2 duration-200">
-                <label className="block text-xs font-bold text-stone-600 mb-1">Quantidade Máxima</label>
+                <label className="block text-xs font-bold text-stone-600 mb-1">Quantidade Máxima (por ciclo)</label>
                 <div className="relative rounded-xl shadow-sm">
                   <input
                     type="number"
-                    min="0"
+                    min="1"
                     value={limitValue}
                     onChange={(e) => setLimitValue(parseInt(e.target.value) || 0)}
                     className="input pr-10"
                     required
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                    <span className="text-xs font-bold text-stone-400">unids</span>
+                    <span className="text-xs font-bold text-stone-400">/ ciclo</span>
                   </div>
                 </div>
               </div>

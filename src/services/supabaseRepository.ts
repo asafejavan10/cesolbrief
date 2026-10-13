@@ -1,5 +1,6 @@
 import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User, BriefingComment, BriefingHistory } from '../types';
 import { validateAttachments, validateFinalFiles } from '../utils/fileRules';
+import { isQuarterMatch } from '../utils/quarterUtils';
 import { supabase, supabaseBucket } from './supabaseClient';
 
 function client() {
@@ -174,19 +175,24 @@ export async function insertBriefing(draft: BriefingDraft, files: File[], user: 
   if (userError) throw new Error(userError.message);
   if (dbUser.isBlocked) throw new Error('Sua conta está bloqueada pelo administrador. Não é possível enviar novos briefings.');
 
-  if (dbUser.limitBriefings !== null && dbUser.limitBriefings !== undefined) {
-    const { count, error: countError } = await api.from('briefings').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
-    if (countError) throw new Error(countError.message);
-    if (count !== null && count >= dbUser.limitBriefings) {
-      throw new Error(`Limite de briefings atingido (${dbUser.limitBriefings} briefings).`);
-    }
-  }
-
   const { data: settings } = await api.from('settings').select('value').eq('key', 'briefings_paused').single();
   if (!user.isAdmin && settings?.value?.paused) throw new Error('O recebimento de briefings está pausado.');
 
   const activeQuarter = Number(settings?.value?.active_quarter ?? 8);
   const trimestreString = `${activeQuarter}º Trimestre/051.2024`;
+
+  if (!user.isAdmin && dbUser.limitBriefings !== null && dbUser.limitBriefings !== undefined) {
+    const { data: userBriefings, error: bError } = await api
+      .from('briefings')
+      .select('id,trimestre')
+      .eq('user_id', user.id);
+    if (bError) throw new Error(bError.message);
+
+    const currentQuarterCount = (userBriefings || []).filter((b) => isQuarterMatch(b.trimestre, activeQuarter)).length;
+    if (currentQuarterCount >= dbUser.limitBriefings) {
+      throw new Error(`Limite de briefings do ciclo atual atingido (${dbUser.limitBriefings} briefings permitidos para o ${activeQuarter}º Trimestre).`);
+    }
+  }
 
   const { data: briefing, error } = await api
     .from('briefings')

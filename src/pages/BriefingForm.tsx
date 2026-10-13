@@ -31,7 +31,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { createBriefing, getSettings, getUserProfile, getBriefings, deleteBriefing, updateBriefing } from '../services/dataProvider';
-import { Briefing, BriefingDraft, ServiceName, ServiceType } from '../types';
+import { Briefing, BriefingDraft, ServiceName, ServiceType, User } from '../types';
 import { cn } from '../utils/cn';
 import { formatBytes, formatDate } from '../utils/format';
 import { formatQuarterLabel, getDistinctQuarters, isQuarterMatch } from '../utils/quarterUtils';
@@ -64,7 +64,7 @@ export function BriefingForm() {
   const [submitting, setSubmitting] = useState(false);
   const [paused, setPaused] = useState(false);
   const [checkingLimit, setCheckingLimit] = useState(true);
-  const [limitError, setLimitError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<User | null>(null);
   const [editingBriefing, setEditingBriefing] = useState<Briefing | null>(null);
   const [filesToRemove, setFilesToRemove] = useState<string[]>([]);
   const [removeId, setRemoveId] = useState<string | null>(null);
@@ -85,14 +85,8 @@ export function BriefingForm() {
         const list = await getBriefings(currentUser);
         setBriefingsList(list);
 
-        const profile = await getUserProfile(currentUser.id);
-        if (profile.isBlocked) {
-          setLimitError('Sua conta está bloqueada pelo administrador. Não é possível enviar novos briefings.');
-        } else if (profile.limitBriefings !== undefined && profile.limitBriefings !== null) {
-          if (list.length >= profile.limitBriefings) {
-            setLimitError(`Você atingiu o limite máximo de ${profile.limitBriefings} briefing(s) permitidos para sua conta.`);
-          }
-        }
+        const prof = await getUserProfile(currentUser.id);
+        setProfile(prof);
       } catch (err) {
         console.error('Erro ao carregar dados iniciais:', err);
       } finally {
@@ -122,6 +116,19 @@ export function BriefingForm() {
   const currentQuarterBriefings = useMemo(() => {
     return briefingsList.filter((b) => isQuarterMatch(b.trimestre, activeQuarter));
   }, [briefingsList, activeQuarter]);
+
+  const limitError = useMemo(() => {
+    if (!profile) return null;
+    if (profile.isBlocked) {
+      return 'Sua conta está bloqueada pelo administrador. Não é possível enviar novos briefings.';
+    }
+    if (!profile.isAdmin && profile.limitBriefings !== undefined && profile.limitBriefings !== null) {
+      if (currentQuarterBriefings.length >= profile.limitBriefings) {
+        return `Você atingiu o limite máximo de ${profile.limitBriefings} briefing(s) permitidos para sua conta no ciclo atual (${formatQuarterLabel(activeQuarter)}).`;
+      }
+    }
+    return null;
+  }, [profile, currentQuarterBriefings, activeQuarter]);
 
   const historicalBriefings = useMemo(() => {
     if (historyQuarter === 'todos') {
@@ -178,6 +185,10 @@ export function BriefingForm() {
     if (!user) return;
     if (paused && !editingBriefing) {
       toast.error('O recebimento de briefings está pausado no momento.');
+      return;
+    }
+    if (!editingBriefing && limitError) {
+      toast.error(limitError);
       return;
     }
     setSubmitting(true);
@@ -329,6 +340,18 @@ export function BriefingForm() {
                 <p className="mt-2 text-xs text-stone-500">
                   Preencha o questionário passo a passo para enviar solicitação no {activeQuarter}º Trimestre.
                 </p>
+                {profile?.limitBriefings !== null && profile?.limitBriefings !== undefined && !profile?.isAdmin && (
+                  <span
+                    className={cn(
+                      'mt-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold',
+                      currentQuarterBriefings.length >= profile.limitBriefings
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-cesol-100 text-cesol-800'
+                    )}
+                  >
+                    {currentQuarterBriefings.length} de {profile.limitBriefings} briefings no ciclo
+                  </span>
+                )}
               </button>
 
               <button

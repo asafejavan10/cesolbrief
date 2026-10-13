@@ -1,5 +1,6 @@
 import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User } from '../types';
 import { validateAttachments, validateFinalFiles } from '../utils/fileRules';
+import { isQuarterMatch } from '../utils/quarterUtils';
 
 const USERS_KEY = 'cesolbrief:users';
 const BRIEFINGS_KEY = 'cesolbrief:briefings';
@@ -357,14 +358,18 @@ export async function createBriefing(draft: BriefingDraft, files: File[], user: 
 
   const users = read<Array<User & { senha: string }>>(USERS_KEY, defaultUsers);
   const foundUser = users.find((u) => u.id === user.id);
+  const settings = getSettings();
+  const activeQuarter = settings.activeQuarter || 8;
+
   if (foundUser) {
     if (foundUser.isBlocked) {
       throw new Error('Sua conta está bloqueada pelo administrador. Não é possível enviar novos briefings.');
     }
-    if (foundUser.limitBriefings !== null && foundUser.limitBriefings !== undefined) {
-      const userBriefings = read<Briefing[]>(BRIEFINGS_KEY, []).filter((b) => b.user_id === user.id);
+    if (!user.isAdmin && foundUser.limitBriefings !== null && foundUser.limitBriefings !== undefined) {
+      const userBriefings = read<Briefing[]>(BRIEFINGS_KEY, [])
+        .filter((b) => b.user_id === user.id && isQuarterMatch(b.trimestre, activeQuarter));
       if (userBriefings.length >= foundUser.limitBriefings) {
-        throw new Error(`Limite de briefings atingido (${foundUser.limitBriefings} briefings).`);
+        throw new Error(`Limite de briefings do ciclo atual atingido (${foundUser.limitBriefings} briefings permitidos para o ${activeQuarter}º Trimestre).`);
       }
     }
   }
@@ -379,8 +384,6 @@ export async function createBriefing(draft: BriefingDraft, files: File[], user: 
     tipo: file.type || 'application/octet-stream',
     tamanho: file.size,
   }));
-  const settings = getSettings();
-  const activeQuarter = settings.activeQuarter || 8;
   const trimestreString = `${activeQuarter}º Trimestre/051.2024`;
 
   const briefing: Briefing = {

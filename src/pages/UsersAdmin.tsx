@@ -59,7 +59,7 @@ export function UsersAdmin() {
                   <th className="px-5 py-4">E-mail</th>
                   <th className="px-5 py-4">Perfil</th>
                   <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4">Limite Briefings</th>
+                  <th className="px-5 py-4">Limite Briefings (por ciclo)</th>
                   <th className="px-5 py-4">Criado em</th>
                   <th className="px-5 py-4">Ações</th>
                 </tr>
@@ -91,7 +91,7 @@ export function UsersAdmin() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-sm font-semibold text-stone-700 whitespace-nowrap">
-                      {item.limitBriefings !== null && item.limitBriefings !== undefined ? `${item.limitBriefings} briefing(s)` : 'Sem limite'}
+                      {item.limitBriefings !== null && item.limitBriefings !== undefined ? `${item.limitBriefings} briefing(s) / ciclo` : 'Sem limite'}
                     </td>
                     <td className="px-5 py-4 text-sm text-stone-600 whitespace-nowrap">{formatDate(item.created_at)}</td>
                     <td className="px-5 py-4">
