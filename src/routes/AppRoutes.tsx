@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { BriefingDetail } from '../pages/BriefingDetail';
 import { BriefingForm } from '../pages/BriefingForm';
 import { Dashboard } from '../pages/Dashboard';
@@ -44,7 +44,9 @@ export function AppRoutes() {
           <Route path="/dashboard/perfil" element={<Page><Profile /></Page>} />
           <Route path="/dashboard/historico" element={<Page><HistoryQuarters /></Page>} />
           <Route path="/dashboard/briefings/:id" element={<Page><BriefingDetail /></Page>} />
+          <Route path="/briefings/:id" element={<Navigate to={`/dashboard${location.pathname}`} replace />} />
         </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </AnimatePresence>
   );

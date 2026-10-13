@@ -1,5 +1,5 @@
 import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User } from '../types';
-import { validateAttachments } from '../utils/fileRules';
+import { validateAttachments, validateFinalFiles } from '../utils/fileRules';
 
 const USERS_KEY = 'cesolbrief:users';
 const BRIEFINGS_KEY = 'cesolbrief:briefings';
@@ -62,10 +62,89 @@ function write<T>(key: string, value: T) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+const melRotuloSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2378350f"/><stop offset="50%" stop-color="%23b45309"/><stop offset="100%" stop-color="%23d97706"/></linearGradient><linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="%23fbbf24"/><stop offset="50%" stop-color="%23fef08a"/><stop offset="100%" stop-color="%23f59e0b"/></linearGradient></defs><rect width="800" height="500" rx="20" fill="url(%23bg)"/><rect x="25" y="25" width="750" height="450" rx="15" fill="none" stroke="url(%23gold)" stroke-width="4" stroke-dasharray="12,6"/><g opacity="0.15" fill="none" stroke="%23fef08a" stroke-width="2"><polygon points="100,60 120,70 120,90 100,100 80,90 80,70"/><polygon points="140,60 160,70 160,90 140,100 120,90 120,70"/><polygon points="700,60 720,70 720,90 700,100 680,90 680,70"/></g><text x="400" y="110" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="%23fde68a" text-anchor="middle" letter-spacing="4">PRODUTO ARTESANAL DA BAHIA</text><text x="400" y="180" font-family="Georgia, serif" font-size="46" font-weight="bold" fill="%23ffffff" text-anchor="middle">MEL SILVESTRE</text><text x="400" y="220" font-family="Arial, sans-serif" font-size="22" font-style="italic" fill="url(%23gold)" text-anchor="middle">100% Puro • Florada Nativa da Chapada</text><circle cx="400" cy="300" r="55" fill="%23451a03" stroke="url(%23gold)" stroke-width="3"/><text x="400" y="295" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="%23fbbf24" text-anchor="middle">500g</text><text x="400" y="322" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="%23fde68a" text-anchor="middle">PESO LÍQUIDO</text><text x="100" y="380" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="%23ffffff">Cooperativa Apícola Chapada Norte</text><text x="100" y="405" font-family="Arial, sans-serif" font-size="12" fill="%23fde68a">Jacobina - Bahia • Brasil</text><text x="100" y="430" font-family="Arial, sans-serif" font-size="11" fill="%23fde68a">Reg. CESOL: 051.2024</text><rect x="560" y="350" width="160" height="90" rx="8" fill="%23451a03" opacity="0.8" stroke="%23fbbf24" stroke-width="1.5"/><text x="640" y="375" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="%23fbbf24" text-anchor="middle">AGRICULTURA FAMILIAR</text><text x="640" y="398" font-family="Arial, sans-serif" font-size="10" fill="%23ffffff" text-anchor="middle">Sem Conservantes</text><text x="640" y="420" font-family="Arial, sans-serif" font-size="10" fill="%23fde68a" text-anchor="middle">Lote: 0824 • Val: 24M</text></svg>`;
+
+const cafeRotuloSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500"><defs><linearGradient id="cbg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2314532d"/><stop offset="50%" stop-color="%23064e3b"/><stop offset="100%" stop-color="%23022c22"/></linearGradient><linearGradient id="cgold" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="%23f59e0b"/><stop offset="50%" stop-color="%23fde68a"/><stop offset="100%" stop-color="%23d97706"/></linearGradient></defs><rect width="800" height="500" rx="20" fill="url(%23cbg)"/><rect x="25" y="25" width="750" height="450" rx="15" fill="none" stroke="url(%23cgold)" stroke-width="4" stroke-dasharray="8,4"/><text x="400" y="110" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="%23fef08a" text-anchor="middle" letter-spacing="4">GRÃOS SELECIONADOS • ALTA MOGIANA</text><text x="400" y="180" font-family="Georgia, serif" font-size="46" font-weight="bold" fill="%23ffffff" text-anchor="middle">CAFÉ DA CHAPADA</text><text x="400" y="220" font-family="Arial, sans-serif" font-size="22" font-style="italic" fill="url(%23cgold)" text-anchor="middle">Especial Gourmet • 100% Arábica</text><circle cx="400" cy="300" r="55" fill="%23022c22" stroke="url(%23cgold)" stroke-width="3"/><text x="400" y="295" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="%23fbbf24" text-anchor="middle">250g</text><text x="400" y="322" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="%23fde68a" text-anchor="middle">TORRADO E MOÍDO</text><text x="100" y="380" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="%23ffffff">Assoc. Produtores de Café</text><text x="100" y="405" font-family="Arial, sans-serif" font-size="12" fill="%23bbf7d0">Caém - Bahia • Brasil</text><text x="100" y="430" font-family="Arial, sans-serif" font-size="11" fill="%23bbf7d0">Altitude: 950m • Peneira 16 acima</text><rect x="560" y="350" width="160" height="90" rx="8" fill="%23022c22" opacity="0.8" stroke="%23fbbf24" stroke-width="1.5"/><text x="640" y="375" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="%23fbbf24" text-anchor="middle">TORRA MÉDIA</text><text x="640" y="398" font-family="Arial, sans-serif" font-size="10" fill="%23ffffff" text-anchor="middle">Notas de Chocolate e Caramelo</text><text x="640" y="420" font-family="Arial, sans-serif" font-size="10" fill="%23bbf7d0" text-anchor="middle">Pontuação SCA: 84 pts</text></svg>`;
+
 export function ensureSeed() {
   if (!localStorage.getItem(USERS_KEY)) write(USERS_KEY, defaultUsers);
-  if (!localStorage.getItem(BRIEFINGS_KEY)) {
-    const sample: Briefing[] = [
+  
+  const currentBriefings = read<Briefing[]>(BRIEFINGS_KEY, []);
+  const hasRotulagem = currentBriefings.some((b) => b.servico === 'Rotulagem' && b.arquivos.some((f) => f.is_final));
+
+  if (!hasRotulagem) {
+    const rotulagemMock1: Briefing = {
+      id: 'mock-rotulagem-mel',
+      agente: 'Wendel',
+      tipo_servico: 'CRIAÇÃO',
+      servico: 'Rotulagem',
+      empreendimento: 'Cooperativa Apícola Chapada Norte',
+      cidade: 'Jacobina',
+      descricao: 'Desenvolvimento de rótulo para pote de vidro de 500g de Mel Silvestre Orgânico. O rótulo contém tabela nutricional, selo da agricultura familiar e espaço para lote e validade.',
+      status: 'concluido',
+      situacao: 'ativo',
+      trimestre: '8º Trimestre/051.2024',
+      created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
+      user_id: 'user-2',
+      arquivos: [
+        {
+          id: 'mock-file-final-mel',
+          briefing_id: 'mock-rotulagem-mel',
+          nome: 'rotulo_mel_silvestre_500g.svg',
+          url: melRotuloSvg,
+          tipo: 'image/svg+xml',
+          tamanho: 24500,
+          is_final: true,
+        },
+      ],
+      comentarios: [
+        {
+          id: 'mock-c1',
+          briefing_id: 'mock-rotulagem-mel',
+          autor: 'Administrador CESOL',
+          texto: 'Arte final do rótulo enviada e aprovada para produção gráfica.',
+          created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+        },
+      ],
+      historico: [
+        { id: 'mock-h3', briefing_id: 'mock-rotulagem-mel', texto: 'Briefing finalizado', created_at: new Date(Date.now() - 3600000 * 20).toISOString() },
+        { id: 'mock-h2', briefing_id: 'mock-rotulagem-mel', texto: 'Material finalizado enviado', created_at: new Date(Date.now() - 3600000 * 24).toISOString() },
+        { id: 'mock-h1', briefing_id: 'mock-rotulagem-mel', texto: 'Briefing criado', created_at: new Date(Date.now() - 3600000 * 48).toISOString() },
+      ],
+    };
+
+    const rotulagemMock2: Briefing = {
+      id: 'mock-rotulagem-cafe',
+      agente: 'Andiara',
+      tipo_servico: 'CRIAÇÃO',
+      servico: 'Rotulagem',
+      empreendimento: 'Café da Chapada Gourmet',
+      cidade: 'Caém',
+      descricao: 'Criação de embalagem e rótulo frontal para Café Especial em grãos torrado e moído 250g. Rótulo com selo de torra e notas sensoriais.',
+      status: 'concluido',
+      situacao: 'ativo',
+      trimestre: '8º Trimestre/051.2024',
+      created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
+      user_id: 'user-3',
+      arquivos: [
+        {
+          id: 'mock-file-final-cafe',
+          briefing_id: 'mock-rotulagem-cafe',
+          nome: 'rotulo_cafe_especial_250g.svg',
+          url: cafeRotuloSvg,
+          tipo: 'image/svg+xml',
+          tamanho: 26800,
+          is_final: true,
+        },
+      ],
+      comentarios: [],
+      historico: [
+        { id: 'mock-hc2', briefing_id: 'mock-rotulagem-cafe', texto: 'Material finalizado enviado', created_at: new Date(Date.now() - 3600000 * 30).toISOString() },
+        { id: 'mock-hc1', briefing_id: 'mock-rotulagem-cafe', texto: 'Briefing criado', created_at: new Date(Date.now() - 3600000 * 72).toISOString() },
+      ],
+    };
+
+    const baseBriefings = currentBriefings.length > 0 ? currentBriefings : [
       {
         id: crypto.randomUUID(),
         agente: 'Wendel',
@@ -101,7 +180,8 @@ export function ensureSeed() {
         historico: [{ id: crypto.randomUUID(), briefing_id: 'sample2', texto: 'Status alterado para em andamento', created_at: new Date().toISOString() }],
       },
     ];
-    write(BRIEFINGS_KEY, sample);
+
+    write(BRIEFINGS_KEY, [rotulagemMock1, rotulagemMock2, ...baseBriefings]);
   }
   if (!localStorage.getItem(NOTIFICATIONS_KEY)) {
     const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
@@ -492,6 +572,8 @@ export function deleteNotification(id: string) {
 }
 
 export async function uploadFinalFiles(briefingId: string, files: File[]): Promise<BriefingFile[]> {
+  const validationError = validateFinalFiles(files);
+  if (validationError) throw new Error(validationError);
   ensureSeed();
   await delay(800);
   const briefings = read<Briefing[]>(BRIEFINGS_KEY, []);
@@ -503,7 +585,7 @@ export async function uploadFinalFiles(briefingId: string, files: File[]): Promi
     briefing_id: briefingId,
     nome: file.name,
     url: URL.createObjectURL(file),
-    tipo: file.type || 'application/octet-stream',
+    tipo: file.type || (file.name.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 'application/octet-stream'),
     tamanho: file.size,
     is_final: true,
   }));

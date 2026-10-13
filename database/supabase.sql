@@ -83,11 +83,12 @@ values (
   'briefing-attachments',
   'briefing-attachments',
   true,
-  5242880,
+  12582912,
   array[
     'image/jpeg',
     'image/png',
     'image/webp',
+    'image/svg+xml',
     'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

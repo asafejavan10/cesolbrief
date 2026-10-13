@@ -1,5 +1,5 @@
 import { Briefing, BriefingDraft, BriefingFile, BriefingStatus, Notification, Settings, User, BriefingComment, BriefingHistory } from '../types';
-import { validateAttachments } from '../utils/fileRules';
+import { validateAttachments, validateFinalFiles } from '../utils/fileRules';
 import { supabase, supabaseBucket } from './supabaseClient';
 
 function client() {
@@ -429,9 +429,10 @@ async function uploadBriefingFiles(briefingId: string, files: File[], isFinal: b
   for (const file of files) {
     const extension = file.name.split('.').pop();
     const path = `${briefingId}/${crypto.randomUUID()}${extension ? `.${extension}` : ''}`;
+    const contentType = file.type || (extension?.toLowerCase() === 'svg' ? 'image/svg+xml' : 'application/octet-stream');
     const { data, error } = await api.storage.from(supabaseBucket).upload(path, file, {
       cacheControl: '3600',
-      contentType: file.type || 'application/octet-stream',
+      contentType,
       upsert: false,
     });
     if (error) throw new Error(error.message);
@@ -441,7 +442,7 @@ async function uploadBriefingFiles(briefingId: string, files: File[], isFinal: b
       briefing_id: briefingId,
       nome: file.name,
       url: publicUrl.publicUrl,
-      tipo: file.type || 'application/octet-stream',
+      tipo: contentType,
       tamanho: file.size,
       is_final: isFinal,
     });
@@ -451,6 +452,8 @@ async function uploadBriefingFiles(briefingId: string, files: File[], isFinal: b
 }
 
 export async function uploadFinalFiles(briefingId: string, files: File[]): Promise<BriefingFile[]> {
+  const validationError = validateFinalFiles(files);
+  if (validationError) throw new Error(validationError);
   const api = client();
   const uploadedFiles = await uploadBriefingFiles(briefingId, files, true);
   if (uploadedFiles.length) {

@@ -10,6 +10,7 @@ import { addComment, getBriefing, updateBriefingStatus, uploadFinalFiles, remove
 import { Briefing, BriefingStatus } from '../types';
 import { cn } from '../utils/cn';
 import { formatBytes, formatDate } from '../utils/format';
+import { validateFinalFiles } from '../utils/fileRules';
 
 
 export function BriefingDetail() {
@@ -27,25 +28,16 @@ export function BriefingDetail() {
   async function handleUploadFinalFiles(files: FileList | null) {
     if (!files || files.length === 0 || !id) return;
     
-    const allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg'];
-    const validFiles: File[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (!ext || !allowedExtensions.includes(ext)) {
-        toast.error(`Tipo de arquivo não permitido: ${file.name}. Envie apenas PDF, PNG ou JPG.`);
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`O arquivo "${file.name}" ultrapassa o limite de 5 MB.`);
-        return;
-      }
-      validFiles.push(file);
+    const fileList = Array.from(files);
+    const error = validateFinalFiles(fileList);
+    if (error) {
+      toast.error(error);
+      return;
     }
 
     try {
       setUploading(true);
-      await uploadFinalFiles(id, validFiles);
+      await uploadFinalFiles(id, fileList);
       toast.success('Material finalizado enviado com sucesso!');
       await refresh();
     } catch (err: any) {
@@ -186,7 +178,7 @@ export function BriefingDetail() {
               <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
               Material Finalizado
             </h2>
-            <p className="mt-1 text-xs text-stone-500">Arte final e arquivos finais para download (PDF, PNG, JPG)</p>
+            <p className="mt-1 text-xs text-stone-500">Arte final e arquivos finais para download (PDF, PNG, JPG, SVG)</p>
             
             <div className="mt-5 space-y-3">
               {briefing.arquivos.filter(f => f.is_final).length === 0 ? (
@@ -228,16 +220,19 @@ export function BriefingDetail() {
                     <div className="flex flex-col items-center gap-2 text-stone-500">
                       <Upload className="text-stone-400 group-hover:text-emerald-500" size={24} />
                       <span className="text-xs font-bold text-stone-700">Enviar material finalizado</span>
-                      <span className="text-[10px] text-stone-400">PDF, PNG, JPG (máx. 5MB)</span>
+                      <span className="text-[10px] text-stone-400">PDF (máx. 12MB), SVG (máx. 10MB), PNG/JPG (máx. 5MB)</span>
                     </div>
                   )}
                   <input
                     type="file"
                     className="hidden"
                     multiple
-                    accept=".pdf,.png,.jpg,.jpeg"
+                    accept=".pdf,.png,.jpg,.jpeg,.svg,image/svg+xml"
                     disabled={uploading}
-                    onChange={(e) => void handleUploadFinalFiles(e.target.files)}
+                    onChange={(e) => {
+                      void handleUploadFinalFiles(e.target.files);
+                      e.target.value = '';
+                    }}
                   />
                 </label>
               </div>
